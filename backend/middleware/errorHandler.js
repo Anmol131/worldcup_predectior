@@ -3,8 +3,8 @@ function errorHandler(err, req, res, next) {
 
   res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
+    message: err.message || 'Server Error',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 }
 

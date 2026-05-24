@@ -1,9 +1,10 @@
 const mongoose = require('mongoose');
 
-const teamLiteSchema = new mongoose.Schema(
+const teamSchema = new mongoose.Schema(
   {
     code: { type: String, default: '' },
     name: { type: String, default: '' },
+    flag: { type: String, default: '' },
   },
   { _id: false },
 );
@@ -11,17 +12,19 @@ const teamLiteSchema = new mongoose.Schema(
 const matchSchema = new mongoose.Schema(
   {
     matchId: { type: String, required: true },
-    teamA: { type: teamLiteSchema, default: () => ({ code: '', name: '' }) },
-    teamB: { type: teamLiteSchema, default: () => ({ code: '', name: '' }) },
-    winner: { type: teamLiteSchema, default: null },
+    matchIndex: { type: Number, required: true },
+    teamA: { type: teamSchema, default: () => ({ code: '', name: '', flag: '' }) },
+    teamB: { type: teamSchema, default: () => ({ code: '', name: '', flag: '' }) },
+    winner: { type: teamSchema, default: null },
     path: { type: String, enum: ['A', 'B'], default: 'A' },
+    round: { type: String, enum: ['r32', 'r16', 'qf', 'sf', 'final'], default: 'r32' },
   },
   { _id: false },
 );
 
 const bracketSchema = new mongoose.Schema(
   {
-    sessionId: { type: String, required: true, index: true },
+    sessionId: { type: String, required: true, unique: true, index: true },
     rounds: {
       r32: { type: [matchSchema], default: [] },
       r16: { type: [matchSchema], default: [] },
@@ -29,7 +32,8 @@ const bracketSchema = new mongoose.Schema(
       sf: { type: [matchSchema], default: [] },
       final: { type: [matchSchema], default: [] },
     },
-    champion: { type: String, default: '' },
+    champion: { type: teamSchema, default: null },
+    isComplete: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

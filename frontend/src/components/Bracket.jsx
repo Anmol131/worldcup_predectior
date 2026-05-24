@@ -83,6 +83,7 @@ function DesktopTeamRow({ team, isWinner, isLoser, rowHeight, showSelect, onSele
       {showSelect ? (
         <button
           type="button"
+            disabled={!onSelect}
           onClick={onSelect}
           className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded bg-[#1f2937] text-xs text-[#e5e7eb] transition duration-200 hover:bg-[#10b981] hover:text-[#06231b]"
           aria-label={`Select ${team.name}`}
@@ -96,7 +97,7 @@ function DesktopTeamRow({ team, isWinner, isLoser, rowHeight, showSelect, onSele
   );
 }
 
-function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPick }) {
+function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPick, isSaving = false }) {
   const resolved = Boolean(match.winner);
   const rowHeight = isFinal ? 42 : 36;
   const homeIsWinner = resolved && match.winner === match.home.code;
@@ -107,7 +108,7 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
   return (
     <div
       ref={setCardRef(roundTitle, match.id)}
-      className={`${isFinal ? 'w-[240px]' : 'w-[210px]'}`}
+      className={`relative ${isFinal ? 'w-[240px]' : 'w-[210px]'}`}
     >
       <p className={`mb-1 text-[10px] uppercase tracking-[0.14em] ${isFinal ? 'text-[#f59e0b]' : 'text-[#6b7280]'}`}>
         {getMatchLabel(roundTitle, index)}
@@ -116,6 +117,12 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
       <div
         className={`rounded-[10px] border bg-[#111827] p-[10px] ${isFinal ? 'border-[#f59e0b] shadow-[0_0_12px_rgba(245,158,11,0.2)]' : 'border-[#1f2937]'}`}
       >
+        {isSaving && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[10px] bg-[#0b1224]/80 text-xs font-semibold text-cyan-100 backdrop-blur-sm">
+            Saving...
+          </div>
+        )}
+
         {isFinal && (
           <div className="mb-2 text-center">
             <p className="text-2xl">🏆</p>
@@ -130,8 +137,8 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
           isWinner={homeIsWinner}
           isLoser={homeIsLoser}
           rowHeight={rowHeight}
-          showSelect={!resolved && Boolean(match.home.code)}
-          onSelect={() => onPick(match.id, match.home.code)}
+          showSelect={!resolved && Boolean(match.home.code) && Boolean(onPick)}
+          onSelect={onPick ? () => onPick(match.id, match.home.code) : undefined}
         />
 
         <div className="my-1 h-px bg-[#1f2937]" />
@@ -141,15 +148,15 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
           isWinner={awayIsWinner}
           isLoser={awayIsLoser}
           rowHeight={rowHeight}
-          showSelect={!resolved && Boolean(match.away.code)}
-          onSelect={() => onPick(match.id, match.away.code)}
+          showSelect={!resolved && Boolean(match.away.code) && Boolean(onPick)}
+          onSelect={onPick ? () => onPick(match.id, match.away.code) : undefined}
         />
       </div>
     </div>
   );
 }
 
-function Bracket({ rounds, onPick, onRevealChampion }) {
+function Bracket({ rounds, onPick, onRevealChampion, pendingMatchId = null }) {
   const [activeRound, setActiveRound] = useState(rounds[0]?.title || ROUND_ORDER[0]);
   const contentRef = useRef(null);
   const cardRefs = useRef(new Map());
@@ -283,6 +290,7 @@ function Bracket({ rounds, onPick, onRevealChampion }) {
             className="w-full"
             pathLabel={index < activeRoundMatches.length / 2 ? 'Path A' : 'Path B'}
             highlightFinal={activeRound === 'Final'}
+            isSaving={pendingMatchId === match.id}
           />
         ))}
       </div>
@@ -332,6 +340,7 @@ function Bracket({ rounds, onPick, onRevealChampion }) {
                           isFinal={isFinal}
                           setCardRef={setCardRef}
                           onPick={onPick}
+                          isSaving={pendingMatchId === match.id}
                         />
                       ))}
                     </div>
@@ -344,7 +353,7 @@ function Bracket({ rounds, onPick, onRevealChampion }) {
       </div>
 
       <div className="safe-bottom sticky bottom-0 z-30 border-t border-[#1f2937] bg-[#0a0f1e]/95 px-3 py-3 backdrop-blur-lg lg:hidden">
-        {!isFinalRound ? (
+        {!isFinalRound && onRevealChampion ? (
           <button
             type="button"
             onClick={handleNextRound}
@@ -353,7 +362,7 @@ function Bracket({ rounds, onPick, onRevealChampion }) {
           >
             → Next Round <FaArrowRight className="h-3 w-3" />
           </button>
-        ) : (
+        ) : isFinalRound && onRevealChampion ? (
           <button
             type="button"
             onClick={onRevealChampion}
@@ -362,7 +371,7 @@ function Bracket({ rounds, onPick, onRevealChampion }) {
           >
             Reveal Champion
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

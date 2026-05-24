@@ -1,30 +1,42 @@
 const express = require('express');
 const { body, param } = require('express-validator');
-const { generateBracket, getBracketBySession, updateMatchWinner } = require('../controllers/bracketController');
+const { generateBracket, getBracket, pickWinner, setChampion } = require('../controllers/bracketController');
 const validateRequest = require('../middleware/validateRequest');
 
 const router = express.Router();
 
 router.post(
-  '/generate',
-  [body('sessionId').optional().isString(), validateRequest],
+  '/:sessionId/bracket/generate',
+  [param('sessionId').isString().withMessage('sessionId is required'), validateRequest],
   generateBracket,
 );
+
 router.get(
-  '/:sessionId',
+  '/:sessionId/bracket',
   [param('sessionId').isString(), validateRequest],
-  getBracketBySession,
+  getBracket,
 );
-router.put(
-  '/:sessionId/match/:matchId',
+
+router.patch(
+  '/:sessionId/bracket/match',
   [
     param('sessionId').isString(),
-    param('matchId').isString(),
+    body('round').isString().withMessage('round is required'),
+    body('matchId').isString().withMessage('matchId is required'),
     body('winnerCode').isString().withMessage('winnerCode is required'),
-    body('winnerName').optional().isString(),
     validateRequest,
   ],
-  updateMatchWinner,
+  pickWinner,
+);
+
+router.patch(
+  '/:sessionId/bracket/champion',
+  [
+    param('sessionId').isString(),
+    body('teamCode').isString().withMessage('teamCode is required'),
+    validateRequest,
+  ],
+  setChampion,
 );
 
 module.exports = router;

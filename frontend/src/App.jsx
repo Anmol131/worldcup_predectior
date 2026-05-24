@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
@@ -7,6 +8,9 @@ import Home from './pages/Home';
 import GroupStage from './pages/GroupStage';
 import KnockoutStage from './pages/KnockoutStage';
 import Champion from './pages/Champion';
+import SharedPredictionPage from './pages/SharedPredictionPage';
+import { useSession } from './hooks/useSession';
+import { sessionAPI } from './services/api';
 
 const pageTransition = {
   initial: { opacity: 0, y: 20 },
@@ -33,6 +37,7 @@ function AnimatedRoutes() {
           <Route path="/groups" element={<GroupStage />} />
           <Route path="/knockout" element={<KnockoutStage />} />
           <Route path="/champion" element={<Champion />} />
+          <Route path="/p/:shareToken" element={<SharedPredictionPage />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </motion.div>
@@ -41,6 +46,16 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  const sessionId = useSession();
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    sessionAPI.getOrCreate(sessionId).catch(() => {});
+  }, [sessionId]);
+
   return (
     <BrowserRouter>
       <ScrollToTop />

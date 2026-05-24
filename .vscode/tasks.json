@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "git-commit-migration",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"-A",
+				";",
+				"git",
+				"commit",
+				"-m",
+				"\"refactor: migrate predictor to backend-owned MERN state with React Query\""
+			]
+		},
+		{
+			"label": "git-commit-migration-2",
+			"type": "shell",
+			"command": "git add -A; git commit -m \"refactor: migrate predictor to backend-owned MERN state with React Query\""
+		},
+		{
+			"label": "git-commit-migration-3",
+			"type": "shell",
+			"command": "git add -A; git commit -m 'refactor: migrate predictor to backend-owned MERN state with React Query'"
+		}
+	]
+}

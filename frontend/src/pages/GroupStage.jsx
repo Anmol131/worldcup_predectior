@@ -2,38 +2,67 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FaCheckCircle, FaArrowRight, FaFutbol } from 'react-icons/fa';
-import groups from '../data/groups';
-import usePredictionStore from '../store/predictionStore';
-import { areThirdPlaceTeamsReady, getAllThirdPlaceTeams, getGroupProgress, isBestThirdSelectionValid } from '../utils/tournament';
 import GroupCard from '../components/GroupCard';
 import ProgressBar from '../components/ProgressBar';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import SkeletonCard from '../components/ui/SkeletonCard';
+import { useSession } from '../hooks/useSession';
+import { useGroups } from '../hooks/useGroups';
+import { useBracket } from '../hooks/useBracket';
+import { useSessionData } from '../hooks/useSessionData';
+
+function getSelection(group) {
+  const selection = { first: '', second: '', third: '' };
+
+  group?.teams?.forEach((team) => {
+    if (team.position === '1st') {
+      selection.first = team.code;
+    }
+    if (team.position === '2nd') {
+      selection.second = team.code;
+    }
+    if (team.position === '3rd') {
+      selection.third = team.code;
+    }
+  });
+
+  return selection;
+}
+
+function getThirdTeams(groups = []) {
+  return groups.flatMap((group) => (group.teams || [])
+    .filter((team) => team.position === '3rd')
+    .map((team) => ({ groupId: group.groupId, team })));
+}
 
 function GroupStage() {
   const navigate = useNavigate();
-  const {
-    groupSelections,
-    bestThirdPlaceTeamCodes,
-    selectGroupTeam,
-    setBestThirdPlaceTeamCodes,
-    generateKnockout,
-  } = usePredictionStore();
+  const sessionId = useSession();
+  const { groups, isLoading, error, pickPosition, isPicking, confirmBestThird, isConfirming } = useGroups(sessionId);
+  const { bracket, generateBracket, isGenerating } = useBracket(sessionId);
+  const { session, isLoading: sessionLoading } = useSessionData(sessionId);
   const [toasts, setToasts] = useState([]);
   const previousCompleteSetRef = useRef(new Set());
 
-  const progress = getGroupProgress(groupSelections);
+  const sessionBestThirdCodes = session?.session?.bestThirdTeams?.map((team) => team.code).filter(Boolean) || [];
+
+  const progress = useMemo(() => {
+    const complete = (groups || []).filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third).length;
+    return { complete, total: groups?.length || 12 };
+  }, [groups]);
+
+  const thirdPlaceReady = progress.complete === progress.total;
+  const allThirdPlaceTeams = useMemo(() => getThirdTeams(groups || []), [groups]);
+  const hasBestEight = sessionBestThirdCodes.length === 8;
+  const canGenerate = Boolean(session?.allGroupsDone && session?.bestThirdConfirmed && hasBestEight && bracket);
+
   const progressPercent = Math.round((progress.complete / progress.total) * 100);
-  const thirdPlaceReady = areThirdPlaceTeamsReady(groupSelections);
-  const allThirdPlaceTeams = useMemo(() => getAllThirdPlaceTeams(groupSelections), [groupSelections]);
-  const hasBestEight = isBestThirdSelectionValid(groupSelections, bestThirdPlaceTeamCodes);
-  const canGenerate = progress.complete === progress.total && thirdPlaceReady && hasBestEight;
 
   useEffect(() => {
-    const nowCompleted = groups
-      .filter((group) => {
-        const selection = groupSelections[group.id] || {};
-        return selection.first && selection.second && selection.third;
-      })
-      .map((group) => group.id);
+    const nowCompleted = (groups || [])
+      .filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third)
+      .map((group) => group.groupId);
 
     const prevSet = previousCompleteSetRef.current;
     nowCompleted.forEach((groupId) => {
@@ -47,34 +76,58 @@ function GroupStage() {
     });
 
     previousCompleteSetRef.current = new Set(nowCompleted);
-  }, [groupSelections]);
+  }, [groups]);
 
   const handleToggleBestThird = (teamCode) => {
-    const exists = bestThirdPlaceTeamCodes.includes(teamCode);
-    if (exists) {
-      setBestThirdPlaceTeamCodes(bestThirdPlaceTeamCodes.filter((code) => code !== teamCode));
+    const next = sessionBestThirdCodes.includes(teamCode)
+      ? sessionBestThirdCodes.filter((code) => code !== teamCode)
+      : [...sessionBestThirdCodes, teamCode];
+
+    if (next.length > 8) {
       return;
     }
 
-    if (bestThirdPlaceTeamCodes.length >= 8) {
-      return;
-    }
-    setBestThirdPlaceTeamCodes([...bestThirdPlaceTeamCodes, teamCode]);
+    confirmBestThird(next);
   };
 
   const handleGenerate = () => {
-    if (!hasBestEight) {
+    if (!canGenerate) {
       return;
     }
-    const ok = generateKnockout();
-    if (ok) {
-      const toastId = `${Date.now()}-generated`;
-      setToasts((current) => [...current, { id: toastId, message: '🏆 Bracket generated!' }]);
-      setTimeout(() => {
-        navigate('/knockout');
-      }, 700);
-    }
+
+    generateBracket(undefined, {
+      onSuccess: () => {
+        const toastId = `${Date.now()}-generated`;
+        setToasts((current) => [...current, { id: toastId, message: '🏆 Bracket generated!' }]);
+        setTimeout(() => {
+          navigate('/knockout');
+        }, 700);
+      },
+    });
   };
+
+  if (!sessionId || isLoading || sessionLoading) {
+    return (
+      <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
+        <div className="mx-auto mb-4 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 shadow-glow sm:max-w-full">
+          <LoadingSpinner />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
+        <ErrorMessage message={error.message || 'Failed to load groups'} />
+      </section>
+    );
+  }
 
   return (
     <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
@@ -82,7 +135,7 @@ function GroupStage() {
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6b7280]">Group Stage</p>
           <h1 className="text-2xl font-bold text-[#f9fafb] sm:text-3xl">Pick all 12 groups</h1>
-          <p className="text-sm leading-6 text-[#9ca3af]">Set 1st, 2nd, and 3rd for each group, then choose your best 8 third-place teams.</p>
+          <p className="text-sm leading-6 text-[#9ca3af]">Set 1st, 2nd, and 3rd for each group, then confirm your best 8 third-place teams.</p>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -92,7 +145,7 @@ function GroupStage() {
           <ProgressBar value={progressPercent} label="Group completion" />
         </div>
 
-        {progress.complete === progress.total && (
+        {session?.allGroupsDone && session?.bestThirdConfirmed && (
           <motion.button
             type="button"
             initial={{ opacity: 0, y: 10 }}
@@ -100,36 +153,37 @@ function GroupStage() {
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${canGenerate ? 'bg-[#10b981] text-[#06231b] animate-bounce' : 'cursor-not-allowed bg-[#374151] text-[#d1d5db]'}`}
             onClick={handleGenerate}
-            disabled={!canGenerate}
+            disabled={!canGenerate || isGenerating}
           >
-            Generate Bracket <FaArrowRight />
+            {isGenerating ? 'Generating...' : <>Generate Bracket <FaArrowRight /></>}
           </motion.button>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {groups.map((group) => (
+        {(groups || []).map((group) => (
           <motion.div
-            key={group.id}
+            key={group.groupId}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
-            <GroupCard
+              <GroupCard
               group={group}
-              selection={groupSelections[group.id]}
-              onSelect={selectGroupTeam}
+              selection={getSelection(group)}
+              onSelect={(groupId, teamCode, rank) => pickPosition({ groupId, teamCode, position: rank })}
+              disabled={isPicking || isConfirming}
             />
           </motion.div>
         ))}
       </div>
 
-      {progress.complete === progress.total && thirdPlaceReady && (
+      {thirdPlaceReady && (
         <div className="mx-auto mt-6 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 sm:max-w-full">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-[#f9fafb]">Choose 8 best 3rd-place teams to advance</h3>
-              <p className="text-sm text-[#9ca3af]">{bestThirdPlaceTeamCodes.length} / 8 selected</p>
+              <p className="text-sm text-[#9ca3af]">{sessionBestThirdCodes.length} / 8 selected</p>
             </div>
             {hasBestEight && (
               <span className="inline-flex min-h-[32px] items-center rounded-[20px] bg-[#10b981]/20 px-3 text-xs font-semibold text-[#34d399]">
@@ -139,13 +193,13 @@ function GroupStage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {allThirdPlaceTeams.map((entry) => {
-              const selected = bestThirdPlaceTeamCodes.includes(entry.team.code);
-              const disabled = !selected && bestThirdPlaceTeamCodes.length >= 8;
+              const selected = sessionBestThirdCodes.includes(entry.team.code);
+              const disabled = !selected && sessionBestThirdCodes.length >= 8;
               return (
                 <button
                   key={`${entry.groupId}-${entry.team.code}`}
                   type="button"
-                  disabled={disabled}
+                  disabled={disabled || isConfirming}
                   onClick={() => handleToggleBestThird(entry.team.code)}
                   className={`wc-chip ${selected ? '!border-[#10b981] !bg-[#10b981]/20 !text-[#d1fae5]' : ''} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                 >

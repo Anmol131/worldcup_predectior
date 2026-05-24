@@ -1,10 +1,13 @@
 {
-  "name": "worldcup-predictor-monorepo",
+  "name": "worldcup-2026-predictor",
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
-    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.0.1"

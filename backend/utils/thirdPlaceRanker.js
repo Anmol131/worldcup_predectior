@@ -1,4 +1,8 @@
-function rankThirdPlaceTeams(teams) {
+function rankThirdPlaceTeams(thirdPlaceTeams = []) {
+  return [...thirdPlaceTeams];
+}
+
+module.exports = rankThirdPlaceTeams;function rankThirdPlaceTeams(teams) {
   if (!Array.isArray(teams)) {
     return [];
   }

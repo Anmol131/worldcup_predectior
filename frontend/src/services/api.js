@@ -1,29 +1,40 @@
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const http = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 15000,
 });
 
-export const groupsApi = {
-  getAll: () => api.get('/groups'),
-  seed: () => api.post('/groups/seed'),
-  update: (groupId, selection) => api.put(`/groups/${groupId}`, { selection }),
+http.interceptors.response.use(
+  (res) => res.data,
+  (err) => Promise.reject(err.response?.data || { message: err.message }),
+);
+
+export const sessionAPI = {
+  getOrCreate: (sessionId) => http.post('/sessions/init', { sessionId }),
+  getSession: (sessionId) => http.get(`/sessions/${sessionId}`),
 };
 
-export const bracketApi = {
-  generate: (sessionId) => api.post('/bracket/generate', { sessionId }),
-  getBySession: (sessionId) => api.get(`/bracket/${sessionId}`),
-  updateMatch: (sessionId, matchId, winnerCode, winnerName) =>
-    api.put(`/bracket/${sessionId}/match/${matchId}`, { winnerCode, winnerName }),
+export const groupsAPI = {
+  getGroups: (sessionId) => http.get(`/sessions/${sessionId}/groups`),
+  updateGroupPick: (sessionId, groupId, teamCode, position) =>
+    http.patch(`/sessions/${sessionId}/groups/${groupId}`, { teamCode, position }),
+  confirmBestThird: (sessionId, selectedTeamCodes) =>
+    http.post(`/sessions/${sessionId}/best-third`, { selectedTeamCodes }),
 };
 
-export const predictionsApi = {
-  create: (sessionId, predictorName = '') => api.post('/predictions', { sessionId, predictorName }),
-  getShared: (token) => api.get(`/predictions/share/${token}`),
-  complete: (sessionId, champion) => api.put(`/predictions/${sessionId}/complete`, { champion }),
+export const bracketAPI = {
+  generateBracket: (sessionId) => http.post(`/sessions/${sessionId}/bracket/generate`),
+  getBracket: (sessionId) => http.get(`/sessions/${sessionId}/bracket`),
+  pickWinner: (sessionId, round, matchId, winnerCode) =>
+    http.patch(`/sessions/${sessionId}/bracket/match`, { round, matchId, winnerCode }),
+  setChampion: (sessionId, teamCode) =>
+    http.patch(`/sessions/${sessionId}/bracket/champion`, { teamCode }),
 };
 
-export default api;
+export const shareAPI = {
+  createShare: (sessionId, predictorName) => http.post('/predictions/share', { sessionId, predictorName }),
+  getShared: (shareToken) => http.get(`/predictions/${shareToken}`),
+};
+
+export default http;

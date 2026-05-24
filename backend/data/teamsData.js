@@ -1,7 +1,6 @@
-const groups = [
+const GROUPS_DATA = [
   {
-    id: 'A',
-    title: 'Group A',
+    groupId: 'A',
     teams: [
       { code: 'MEX', name: 'Mexico', flag: '🇲🇽' },
       { code: 'ZAF', name: 'South Africa', flag: '🇿🇦' },
@@ -10,8 +9,7 @@ const groups = [
     ],
   },
   {
-    id: 'B',
-    title: 'Group B',
+    groupId: 'B',
     teams: [
       { code: 'CAN', name: 'Canada', flag: '🇨🇦' },
       { code: 'BIH', name: 'Bosnia & Herzegovina', flag: '🇧🇦' },
@@ -20,8 +18,7 @@ const groups = [
     ],
   },
   {
-    id: 'C',
-    title: 'Group C',
+    groupId: 'C',
     teams: [
       { code: 'BRA', name: 'Brazil', flag: '🇧🇷' },
       { code: 'MAR', name: 'Morocco', flag: '🇲🇦' },
@@ -30,8 +27,7 @@ const groups = [
     ],
   },
   {
-    id: 'D',
-    title: 'Group D',
+    groupId: 'D',
     teams: [
       { code: 'USA', name: 'USA', flag: '🇺🇸' },
       { code: 'PAR', name: 'Paraguay', flag: '🇵🇾' },
@@ -40,8 +36,7 @@ const groups = [
     ],
   },
   {
-    id: 'E',
-    title: 'Group E',
+    groupId: 'E',
     teams: [
       { code: 'GER', name: 'Germany', flag: '🇩🇪' },
       { code: 'CRC', name: 'Curaçao', flag: '🇨🇼' },
@@ -50,8 +45,7 @@ const groups = [
     ],
   },
   {
-    id: 'F',
-    title: 'Group F',
+    groupId: 'F',
     teams: [
       { code: 'NED', name: 'Netherlands', flag: '🇳🇱' },
       { code: 'JPN', name: 'Japan', flag: '🇯🇵' },
@@ -60,8 +54,7 @@ const groups = [
     ],
   },
   {
-    id: 'G',
-    title: 'Group G',
+    groupId: 'G',
     teams: [
       { code: 'BEL', name: 'Belgium', flag: '🇧🇪' },
       { code: 'EGY', name: 'Egypt', flag: '🇪🇬' },
@@ -70,8 +63,7 @@ const groups = [
     ],
   },
   {
-    id: 'H',
-    title: 'Group H',
+    groupId: 'H',
     teams: [
       { code: 'ESP', name: 'Spain', flag: '🇪🇸' },
       { code: 'CPV', name: 'Cape Verde', flag: '🇨🇻' },
@@ -80,8 +72,7 @@ const groups = [
     ],
   },
   {
-    id: 'I',
-    title: 'Group I',
+    groupId: 'I',
     teams: [
       { code: 'FRA', name: 'France', flag: '🇫🇷' },
       { code: 'SEN', name: 'Senegal', flag: '🇸🇳' },
@@ -90,8 +81,7 @@ const groups = [
     ],
   },
   {
-    id: 'J',
-    title: 'Group J',
+    groupId: 'J',
     teams: [
       { code: 'ARG', name: 'Argentina', flag: '🇦🇷' },
       { code: 'ALG', name: 'Algeria', flag: '🇩🇿' },
@@ -100,8 +90,7 @@ const groups = [
     ],
   },
   {
-    id: 'K',
-    title: 'Group K',
+    groupId: 'K',
     teams: [
       { code: 'POR', name: 'Portugal', flag: '🇵🇹' },
       { code: 'COD', name: 'DR Congo', flag: '🇨🇩' },
@@ -110,8 +99,7 @@ const groups = [
     ],
   },
   {
-    id: 'L',
-    title: 'Group L',
+    groupId: 'L',
     teams: [
       { code: 'ENG', name: 'England', flag: '🏴' },
       { code: 'CRO', name: 'Croatia', flag: '🇭🇷' },
@@ -121,4 +109,4 @@ const groups = [
   },
 ];
 
-export default groups;
+module.exports = { GROUPS_DATA };

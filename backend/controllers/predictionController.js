@@ -1,49 +1,48 @@
-const { randomUUID } = require('crypto');
 const Prediction = require('../models/Prediction');
+const Session = require('../models/Session');
+const Bracket = require('../models/Bracket');
+const { nanoid } = require('nanoid');
 
-exports.createPrediction = async (req, res, next) => {
+exports.createShare = async (req, res, next) => {
   try {
-    const { sessionId, predictorName = '' } = req.body;
+    const { sessionId, predictorName = 'Anonymous' } = req.body;
 
-    const prediction = await Prediction.findOneAndUpdate(
-      { sessionId },
-      {
-        sessionId,
-        predictorName,
-        shareToken: randomUUID(),
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
+    const [session, bracket] = await Promise.all([
+      Session.findOne({ sessionId }),
+      Bracket.findOne({ sessionId }),
+    ]);
 
-    return res.status(201).json({ success: true, data: prediction });
-  } catch (error) {
-    return next(error);
-  }
-};
-
-exports.getPredictionByToken = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-
-    const prediction = await Prediction.findOne({ shareToken: token }).populate('groups').populate('bracket');
-    if (!prediction) {
-      return res.status(404).json({ success: false, message: 'Prediction not found' });
+    if (!session || !bracket) {
+      return res.status(404).json({ success: false, message: 'Prediction data not found' });
     }
 
-    return res.status(200).json({ success: true, data: prediction });
+    const shareToken = nanoid(8);
+    const prediction = await Prediction.create({
+      sessionId,
+      shareToken,
+      predictorName,
+      champion: bracket.champion || null,
+      bracketSnapshot: bracket.toObject(),
+      groupsSnapshot: session.toObject(),
+    });
+
+    return res.status(201).json({
+      success: true,
+      shareToken,
+      shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/p/${shareToken}`,
+      prediction,
+    });
   } catch (error) {
     return next(error);
   }
 };
 
-exports.completePrediction = async (req, res, next) => {
+exports.getShared = async (req, res, next) => {
   try {
-    const { sessionId } = req.params;
-    const { champion } = req.body;
-
+    const { shareToken } = req.params;
     const prediction = await Prediction.findOneAndUpdate(
-      { sessionId },
-      { champion, isComplete: true },
+      { shareToken },
+      { $inc: { viewCount: 1 } },
       { new: true },
     );
 
@@ -51,7 +50,7 @@ exports.completePrediction = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Prediction not found' });
     }
 
-    return res.status(200).json({ success: true, data: prediction });
+    return res.status(200).json({ success: true, prediction });
   } catch (error) {
     return next(error);
   }

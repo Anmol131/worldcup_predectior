@@ -4,7 +4,7 @@ const rankStyles = {
   third: 'bg-[#b45309] text-[#f9fafb] border-[#b45309]',
 };
 
-function TeamCard({ team, selectedRank, onSelect }) {
+function TeamCard({ team, selectedRank, onSelect, disabled = false, isSaving = false }) {
   const isFirst = selectedRank === 'first';
   const isSecond = selectedRank === 'second';
   const isThird = selectedRank === 'third';
@@ -35,6 +35,7 @@ function TeamCard({ team, selectedRank, onSelect }) {
             type="button"
             className={rankButtonClass('first', isFirst)}
             onClick={() => onSelect('first')}
+            disabled={disabled}
           >
             1st
           </button>
@@ -42,6 +43,7 @@ function TeamCard({ team, selectedRank, onSelect }) {
             type="button"
             className={rankButtonClass('second', isSecond)}
             onClick={() => onSelect('second')}
+            disabled={disabled}
           >
             2nd
           </button>
@@ -49,11 +51,18 @@ function TeamCard({ team, selectedRank, onSelect }) {
             type="button"
             className={rankButtonClass('third', isThird)}
             onClick={() => onSelect('third')}
+            disabled={disabled}
           >
             3rd
           </button>
         </div>
       </div>
+      {isSaving && (
+        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-cyan-100/30 border-t-cyan-100" />
+          Saving...
+        </div>
+      )}
     </div>
   );
 }

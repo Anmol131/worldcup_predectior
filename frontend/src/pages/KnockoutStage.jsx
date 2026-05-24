@@ -2,24 +2,49 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
-import { FaShareAlt, FaRedo, FaTrophy } from 'react-icons/fa';
-import usePredictionStore from '../store/predictionStore';
-import { buildKnockoutRounds, getGroupProgress } from '../utils/tournament';
+import { FaRedo, FaTrophy } from 'react-icons/fa';
 import Bracket from '../components/Bracket';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useSession } from '../hooks/useSession';
+import { useBracket } from '../hooks/useBracket';
+import { useSessionData } from '../hooks/useSessionData';
 
-const roundOrder = ['Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
+function toDisplayRounds(bracket) {
+  if (!bracket?.rounds) {
+    return [];
+  }
+
+  return [
+    ['Round of 32', bracket.rounds.r32 || []],
+    ['Round of 16', bracket.rounds.r16 || []],
+    ['Quarter Finals', bracket.rounds.qf || []],
+    ['Semi Finals', bracket.rounds.sf || []],
+    ['Final', bracket.rounds.final || []],
+  ].map(([title, matches]) => ({
+    title,
+    matches: matches.map((match) => ({
+      id: match.matchId,
+      round: title,
+      home: match.teamA || { code: '', name: 'TBD', flag: '' },
+      away: match.teamB || { code: '', name: 'TBD', flag: '' },
+      winner: match.winner?.code || null,
+    })),
+  }));
+}
 
 function KnockoutStage() {
   const navigate = useNavigate();
+  const sessionId = useSession();
+  const { bracket, isLoading, error, pickWinner, isPicking } = useBracket(sessionId);
+  const { session, isLoading: sessionLoading } = useSessionData(sessionId);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [shareMessage, setShareMessage] = useState('');
-  const { groupSelections, bestThirdPlaceTeamCodes, matchWinners, setMatchWinner, generated, resetPrediction } = usePredictionStore();
-  const { rounds, champion } = useMemo(
-    () => buildKnockoutRounds(groupSelections, matchWinners, bestThirdPlaceTeamCodes),
-    [groupSelections, matchWinners, bestThirdPlaceTeamCodes],
-  );
+  const [pendingMatchId, setPendingMatchId] = useState(null);
 
-  const progress = getGroupProgress(groupSelections);
+  const rounds = useMemo(() => toDisplayRounds(bracket), [bracket]);
+  const champion = bracket?.champion || null;
+
+  const roundOrder = ['Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
   const firstIncompleteRound = roundOrder.find((title) => {
     const matches = rounds.find((round) => round.title === title)?.matches || [];
     return matches.length > 0 && matches.some((match) => !match.winner);
@@ -32,8 +57,8 @@ function KnockoutStage() {
     if (!champion) {
       return;
     }
-    setShowCelebration(true);
 
+    setShowCelebration(true);
     confetti({
       particleCount: 140,
       spread: 100,
@@ -42,26 +67,47 @@ function KnockoutStage() {
     });
   }, [champion]);
 
-  const handleSharePrediction = async () => {
-    if (!champion?.name) {
-      return;
-    }
-    const text = `My World Cup 2026 champion prediction: ${champion.name}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareMessage('Prediction copied to clipboard.');
-    } catch {
-      setShareMessage('Could not copy prediction.');
-    }
+  const handlePickWinner = (matchId, winnerCode, roundTitle) => {
+    const roundMap = {
+      'Round of 32': 'r32',
+      'Round of 16': 'r16',
+      'Quarter Finals': 'qf',
+      'Semi Finals': 'sf',
+      Final: 'final',
+    };
+
+    setPendingMatchId(matchId);
+    pickWinner(
+      { round: roundMap[roundTitle], matchId, winnerCode },
+      {
+        onSettled: () => setPendingMatchId(null),
+      },
+    );
   };
 
-  if (!generated) {
+  if (!sessionId || isLoading || sessionLoading) {
+    return (
+      <section className="mx-auto max-w-[1160px] px-4 pb-16 pt-8 sm:px-6">
+        <LoadingSpinner />
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="mx-auto max-w-[1160px] px-4 pb-16 pt-8 sm:px-6">
+        <ErrorMessage message={error.message || 'Failed to load bracket'} />
+      </section>
+    );
+  }
+
+  if (!bracket) {
     return (
       <section className="mx-auto max-w-[1160px] px-4 pb-16 pt-8 sm:px-6">
         <div className="mx-auto max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-8 text-center shadow-glow sm:max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#6b7280]">Bracket unavailable</p>
           <h1 className="mt-3 text-2xl font-bold text-[#f9fafb]">Finish groups first</h1>
-          <p className="mt-2 text-sm text-[#9ca3af]">Complete all 12 groups and select the 8 best third-place teams.</p>
+          <p className="mt-2 text-sm text-[#9ca3af]">Complete all 12 groups and confirm the 8 best third-place teams.</p>
           <button className="btn-primary mt-8" onClick={() => navigate('/groups')}>
             Complete Groups
           </button>
@@ -81,7 +127,7 @@ function KnockoutStage() {
           </div>
           <div className="rounded-lg border border-[#1f2937] bg-[#0b1224] p-3 text-left">
             <p className="text-xs uppercase tracking-[0.14em] text-[#6b7280]">Groups ready</p>
-            <p className="mt-1 text-lg font-bold text-[#d1fae5]">{progress.complete} / {progress.total}</p>
+            <p className="mt-1 text-lg font-bold text-[#d1fae5]">{session?.groupsComplete || 0} / 12</p>
           </div>
         </div>
 
@@ -94,7 +140,17 @@ function KnockoutStage() {
         </div>
       </div>
 
-      <Bracket rounds={rounds} onPick={setMatchWinner} onRevealChampion={() => setShowCelebration(true)} />
+      <Bracket
+        rounds={rounds}
+        pendingMatchId={pendingMatchId}
+        onPick={isPicking ? undefined : (matchId, winnerCode) => handlePickWinner(matchId, winnerCode, rounds.find((round) => round.matches.some((match) => match.id === matchId))?.title)}
+      />
+
+      {pendingMatchId && (
+        <div className="mx-auto mt-4 max-w-[1160px] rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-100">
+          Saving match {pendingMatchId}...
+        </div>
+      )}
 
       <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
         <button className="btn-secondary" onClick={() => navigate('/groups')}>
@@ -121,15 +177,20 @@ function KnockoutStage() {
             <h2 className="mt-2 text-4xl font-bold text-[#f9fafb]">{champion.flag} {champion.name}</h2>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button type="button" className="btn-primary" onClick={handleSharePrediction}>
-                <FaShareAlt className="mr-2" /> Share Prediction
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setShowCelebration(false);
+                  navigate('/champion');
+                }}
+              >
+                View Champion Page
               </button>
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => {
-                  resetPrediction();
-                  setShowCelebration(false);
                   navigate('/groups');
                 }}
               >
@@ -137,7 +198,6 @@ function KnockoutStage() {
               </button>
             </div>
 
-            {shareMessage && <p className="mt-4 text-sm text-[#d1fae5]">{shareMessage}</p>}
             <button type="button" className="mt-4 text-xs uppercase tracking-[0.15em] text-[#6b7280]" onClick={() => setShowCelebration(false)}>
               Close
             </button>

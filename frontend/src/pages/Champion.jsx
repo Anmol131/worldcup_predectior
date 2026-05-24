@@ -2,14 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaTrophy, FaShareAlt, FaRedo } from 'react-icons/fa';
-import usePredictionStore from '../store/predictionStore';
-import { buildKnockoutRounds } from '../utils/tournament';
+import ErrorMessage from '../components/ui/ErrorMessage';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useSession } from '../hooks/useSession';
+import { useBracket } from '../hooks/useBracket';
+import { useShare } from '../hooks/useSessionData';
 
 function Champion() {
   const navigate = useNavigate();
+  const sessionId = useSession();
+  const { bracket, isLoading, error } = useBracket(sessionId);
+  const { share, shareToken, shareUrl, isSharing, shareError } = useShare(sessionId);
+  const [predictorName, setPredictorName] = useState('');
   const [shareMessage, setShareMessage] = useState('');
-  const { groupSelections, bestThirdPlaceTeamCodes, matchWinners, resetPrediction } = usePredictionStore();
-  const { champion } = buildKnockoutRounds(groupSelections, matchWinners, bestThirdPlaceTeamCodes);
+
+  const champion = bracket?.champion || null;
 
   const confettiPieces = useMemo(
     () => Array.from({ length: 36 }, (_, index) => ({
@@ -23,29 +30,54 @@ function Champion() {
   );
 
   useEffect(() => {
-    if (!champion) {
+    if (!sessionId) {
+      return;
+    }
+
+    if (!isLoading && !champion) {
       navigate('/knockout');
     }
-  }, [champion, navigate]);
+  }, [champion, isLoading, navigate, sessionId]);
 
-  const handleShare = async () => {
-    const text = `My World Cup 2026 champion prediction: ${champion?.name}`;
+  useEffect(() => {
+    if (shareToken && shareUrl) {
+      setShareMessage('Share link created.');
+    }
+  }, [shareToken, shareUrl]);
+
+  const handleShare = () => {
+    setShareMessage('');
+    share(predictorName.trim() || 'Anonymous');
+  };
+
+  const handleCopy = async () => {
+    if (!shareUrl) {
+      return;
+    }
+
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: 'World Cup 2026 Predictor',
-          text,
-        });
-        setShareMessage('Shared successfully.');
-        return;
-      }
-
-      await navigator.clipboard.writeText(text);
-      setShareMessage('Prediction copied to clipboard.');
+      await navigator.clipboard.writeText(shareUrl);
+      setShareMessage('Link copied! Share with friends.');
     } catch {
-      setShareMessage('Sharing was cancelled.');
+      setShareMessage('Copy failed.');
     }
   };
+
+  if (!sessionId || isLoading) {
+    return (
+      <section className="mx-auto max-w-5xl px-6 pb-16 pt-16 sm:px-10">
+        <LoadingSpinner />
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="mx-auto max-w-5xl px-6 pb-16 pt-16 sm:px-10">
+        <ErrorMessage message={error.message || 'Failed to load champion'} />
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto max-w-5xl px-6 pb-16 pt-16 sm:px-10">
@@ -63,13 +95,7 @@ function Champion() {
               style={{ left: piece.left, backgroundColor: piece.color }}
               initial={{ y: -40, rotate: 0, opacity: 0 }}
               animate={{ y: 620, rotate: 340, opacity: [0, 1, 1, 0] }}
-              transition={{
-                repeat: Infinity,
-                repeatType: 'loop',
-                duration: piece.duration,
-                delay: piece.delay,
-                ease: 'linear',
-              }}
+              transition={{ repeat: Infinity, repeatType: 'loop', duration: piece.duration, delay: piece.delay, ease: 'linear' }}
             />
           ))}
         </div>
@@ -81,10 +107,10 @@ function Champion() {
           <p className="mt-6 text-sm uppercase tracking-[0.3em] text-cyan-200">Predicted Champion</p>
           <h1 className="mt-4 text-5xl font-semibold text-white">{champion?.name || 'Champion TBD'}</h1>
           <div className="mt-6 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-6 py-4 text-left text-slate-200 shadow-glow">
-            <span className="text-5xl">{champion?.flag}</span>
+            <span className="text-5xl">{champion?.flag || '🏆'}</span>
             <div>
               <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Final selection</p>
-              <p className="mt-2 text-xl font-semibold text-white">{champion?.name}</p>
+              <p className="mt-2 text-xl font-semibold text-white">{champion?.name || 'TBD'}</p>
             </div>
           </div>
 
@@ -92,18 +118,45 @@ function Champion() {
             <button
               className="btn-primary"
               onClick={() => {
-                resetPrediction();
                 navigate('/groups');
               }}
             >
               <FaRedo className="mr-2" /> Restart Prediction
             </button>
-            <button className="btn-secondary" onClick={handleShare}>
-              <FaShareAlt className="mr-2" /> Share your prediction
+            <button className="btn-secondary" onClick={handleShare} disabled={isSharing}>
+              <FaShareAlt className="mr-2" /> {isSharing ? 'Creating...' : 'Generate Share Link'}
             </button>
           </div>
 
-          {shareMessage && <p className="mt-4 text-sm text-cyan-100">{shareMessage}</p>}
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-5 text-left">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <label className="flex-1">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-400">Your name (optional)</span>
+                <input
+                  type="text"
+                  value={predictorName}
+                  onChange={(event) => setPredictorName(event.target.value)}
+                  placeholder="Anonymous"
+                  className="w-full rounded-2xl border border-white/10 bg-[#0b1224] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                />
+              </label>
+              <button className="btn-primary min-h-[48px] sm:w-[220px]" onClick={handleShare} disabled={isSharing}>
+                {isSharing ? <span className="inline-flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Creating...</span> : <><FaShareAlt className="mr-2" /> Generate Share Link 🔗</>}
+              </button>
+            </div>
+
+            {shareUrl && (
+              <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-[#08111f] p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">Share URL</p>
+                <p className="mt-2 break-all text-sm text-white">{shareUrl}</p>
+                <button type="button" className="btn-secondary mt-4" onClick={handleCopy}>
+                  Copy Link
+                </button>
+              </div>
+            )}
+
+            {(shareMessage || shareError) && <p className="mt-4 text-sm text-cyan-100">{shareMessage || shareError?.message}</p>}
+          </div>
         </div>
       </motion.div>
     </section>

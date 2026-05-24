@@ -7,6 +7,7 @@ function MatchCard({
   compact = false,
   pathLabel,
   highlightFinal = false,
+  isSaving = false,
 }) {
   const ready = match.home.code && match.away.code;
   const winnerName = [match.home, match.away].find((team) => team.code === match.winner)?.name;
@@ -40,6 +41,12 @@ function MatchCard({
       animate={{ scale: match.winner ? 0.985 : 1 }}
       className={`relative overflow-hidden rounded-xl border bg-[#111827] p-3 transition duration-200 ${compact ? 'w-[180px]' : 'w-full'} ${waitingSelection ? 'border-[#10b981]/70 shadow-[0_0_0_1px_rgba(16,185,129,0.4),0_0_16px_rgba(16,185,129,0.18)]' : 'border-[#1f2937]'} ${highlightFinal ? 'border-[#f59e0b] shadow-[0_0_18px_rgba(245,158,11,0.35)]' : ''} ${className}`}
     >
+      {isSaving && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0b1224]/80 text-sm font-semibold text-cyan-100 backdrop-blur-sm">
+          Saving...
+        </div>
+      )}
+
       <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-[#6b7280]">
         <span>{roundLabel} · Match {match.id.slice(-2)}</span>
         <span>{pathLabel || 'Path A'}</span>
@@ -55,8 +62,8 @@ function MatchCard({
             <button
               key={`${match.id}-${index}`}
               type="button"
-              disabled={!ready || placeholder}
-              onClick={() => onPick(match.id, team.code)}
+              disabled={!ready || placeholder || !onPick}
+              onClick={onPick ? () => onPick(match.id, team.code) : undefined}
               className={`relative min-h-[56px] w-full rounded-lg border px-3 py-2 text-left transition duration-200 active:scale-95 ${placeholder ? 'cursor-not-allowed border-dashed border-[#374151] bg-[#0b1224] text-[#6b7280]' : selected ? 'border-[#10b981] border-l-4 bg-[#10b981]/15 text-[#d1fae5]' : 'border-[#1f2937] bg-[#0b1224] text-[#f9fafb]'} ${loser ? 'opacity-40' : ''}`}
             >
               <div className="flex items-center justify-between gap-3">

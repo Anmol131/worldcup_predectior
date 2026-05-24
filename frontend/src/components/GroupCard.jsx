@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import TeamCard from './TeamCard';
 
-function GroupCard({ group, selection = {}, onSelect }) {
+function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [draftOrder, setDraftOrder] = useState([]);
   const pickedCount = [selection.first, selection.second, selection.third].filter(Boolean).length;
@@ -51,6 +51,7 @@ function GroupCard({ group, selection = {}, onSelect }) {
               key={`${group.id}-${team.code}-order`}
               type="button"
               onClick={() => toggleDraftTeam(team.code)}
+                disabled={disabled}
               className={`min-h-[44px] rounded-lg border px-3 py-2 text-left transition duration-200 active:scale-95 ${idx >= 0 ? 'border-[#10b981] bg-[#10b981]/15 text-[#d1fae5]' : 'border-[#374151] bg-[#111827] text-[#e5e7eb]'}`}
             >
               <span className="mr-2 text-lg leading-none">{team.flag}</span>
@@ -68,7 +69,7 @@ function GroupCard({ group, selection = {}, onSelect }) {
           type="button"
           className={`btn-primary ${draftOrder.length !== 3 ? 'cursor-not-allowed opacity-60' : ''}`}
           onClick={applyDraftOrder}
-          disabled={draftOrder.length !== 3}
+          disabled={draftOrder.length !== 3 || disabled}
         >
           Apply Order
         </button>
@@ -96,7 +97,8 @@ function GroupCard({ group, selection = {}, onSelect }) {
               }
               setIsSelectorOpen((prev) => !prev);
             }}
-            className="min-h-[44px] rounded-lg border border-[#374151] bg-[#0b1224] px-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#d1d5db] transition duration-200 active:scale-95"
+            className="min-h-[44px] rounded-lg border border-[#374151] bg-[#0b1224] px-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#d1d5db] transition duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={disabled}
           >
             Select Order
           </button>
@@ -138,6 +140,8 @@ function GroupCard({ group, selection = {}, onSelect }) {
                     : null
             }
             onSelect={(rank) => onSelect(group.id, team.code, rank)}
+              disabled={disabled}
+              isSaving={disabled}
           />
         ))}
       </div>
