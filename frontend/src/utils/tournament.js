@@ -171,3 +171,38 @@ export function getDescendantMatchIds(matchId) {
 
   return Array.from(descendants);
 }
+
+/**
+ * Get all 12 third-place teams from group selections
+ */
+export function getAllThirdPlaceTeams(selections) {
+  return groups.map((group) => ({
+    groupId: group.id,
+    team: getGroupSelectionTeam(group.id, selections[group.id], 'third'),
+  }));
+}
+
+/**
+ * Get the 8 third-place teams that qualify for knockout (groups A through H)
+ * In 2026 World Cup, the 8 best third-place teams advance - these are selected from groups A-H
+ */
+export function getQualifyingThirdPlaceTeams(selections) {
+  const qualifyingGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  return qualifyingGroups.map((groupId) => ({
+    groupId,
+    team: getGroupSelectionTeam(groupId, selections[groupId], 'third'),
+  }));
+}
+
+/**
+ * Check if all 3rd place selections are available (teams are determined from group selections)
+ */
+export function areThirdPlaceTeamsReady(selections) {
+  // All groups must be complete first
+  if (!isGroupStageComplete(selections)) {
+    return false;
+  }
+  // All third-place teams are automatically available once all groups are complete
+  // since they're derived from the group selections
+  return true;
+}
