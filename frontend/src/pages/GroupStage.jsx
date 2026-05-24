@@ -12,18 +12,26 @@ import { useGroups } from '../hooks/useGroups';
 import { useBracket } from '../hooks/useBracket';
 import { useSessionData } from '../hooks/useSessionData';
 
+const POSITION_MAP = {
+  '1st': 'first',
+  first: 'first',
+  '2nd': 'second',
+  second: 'second',
+  '3rd': 'third',
+  third: 'third',
+};
+
+function normalizePosition(position) {
+  return POSITION_MAP[position] || null;
+}
+
 function getSelection(group) {
   const selection = { first: '', second: '', third: '' };
 
   group?.teams?.forEach((team) => {
-    if (team.position === '1st') {
-      selection.first = team.code;
-    }
-    if (team.position === '2nd') {
-      selection.second = team.code;
-    }
-    if (team.position === '3rd') {
-      selection.third = team.code;
+    const normalized = normalizePosition(team.position);
+    if (normalized) {
+      selection[normalized] = team.code;
     }
   });
 
@@ -32,20 +40,39 @@ function getSelection(group) {
 
 function getThirdTeams(groups = []) {
   return groups.flatMap((group) => (group.teams || [])
-    .filter((team) => team.position === '3rd')
+    .filter((team) => normalizePosition(team.position) === 'third')
     .map((team) => ({ groupId: group.groupId, team })));
 }
 
 function GroupStage() {
   const navigate = useNavigate();
-  const sessionId = useSession();
+  const { sessionId, isReady } = useSession();
   const { groups, isLoading, error, pickPosition, isPicking, confirmBestThird, isConfirming } = useGroups(sessionId);
   const { bracket, generateBracket, isGenerating } = useBracket(sessionId);
   const { session, isLoading: sessionLoading } = useSessionData(sessionId);
   const [toasts, setToasts] = useState([]);
   const previousCompleteSetRef = useRef(new Set());
 
-  const sessionBestThirdCodes = session?.session?.bestThirdTeams?.map((team) => team.code).filter(Boolean) || [];
+  const sessionBestThirdCodesKey = session?.session?.bestThirdTeams?.map((team) => team.code).filter(Boolean).join(',') || '';
+  const sessionBestThirdCodes = useMemo(
+    () => (sessionBestThirdCodesKey
+      ? session?.session?.bestThirdTeams?.map((team) => team.code).filter(Boolean)
+      : []),
+    [sessionBestThirdCodesKey],
+  );
+  const [selectedThirdTeamCodes, setSelectedThirdTeamCodes] = useState(sessionBestThirdCodes);
+
+  useEffect(() => {
+    if (!sessionBestThirdCodesKey) {
+      return;
+    }
+
+    setSelectedThirdTeamCodes((previous) => {
+      const same = previous.length === sessionBestThirdCodes.length
+        && previous.every((code) => sessionBestThirdCodes.includes(code));
+      return same ? previous : sessionBestThirdCodes;
+    });
+  }, [sessionBestThirdCodesKey]);
 
   const progress = useMemo(() => {
     const complete = (groups || []).filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third).length;
@@ -54,8 +81,9 @@ function GroupStage() {
 
   const thirdPlaceReady = progress.complete === progress.total;
   const allThirdPlaceTeams = useMemo(() => getThirdTeams(groups || []), [groups]);
-  const hasBestEight = sessionBestThirdCodes.length === 8;
-  const canGenerate = Boolean(session?.allGroupsDone && session?.bestThirdConfirmed && hasBestEight && bracket);
+  const hasBestEight = selectedThirdTeamCodes.length === 8;
+  const isBestThirdConfirmed = Boolean(session?.bestThirdConfirmed);
+  const canGenerate = Boolean(session?.allGroupsDone && isBestThirdConfirmed && hasBestEight && bracket);
 
   const progressPercent = Math.round((progress.complete / progress.total) * 100);
 
@@ -79,15 +107,17 @@ function GroupStage() {
   }, [groups]);
 
   const handleToggleBestThird = (teamCode) => {
-    const next = sessionBestThirdCodes.includes(teamCode)
-      ? sessionBestThirdCodes.filter((code) => code !== teamCode)
-      : [...sessionBestThirdCodes, teamCode];
+    setSelectedThirdTeamCodes((current) => {
+      const next = current.includes(teamCode)
+        ? current.filter((code) => code !== teamCode)
+        : [...current, teamCode];
 
-    if (next.length > 8) {
-      return;
-    }
+      if (next.length > 8) {
+        return current;
+      }
 
-    confirmBestThird(next);
+      return next;
+    });
   };
 
   const handleGenerate = () => {
@@ -106,7 +136,7 @@ function GroupStage() {
     });
   };
 
-  if (!sessionId || isLoading || sessionLoading) {
+  if (!isReady || !sessionId || isLoading || sessionLoading) {
     return (
       <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
         <div className="mx-auto mb-4 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 shadow-glow sm:max-w-full">
@@ -183,7 +213,7 @@ function GroupStage() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-[#f9fafb]">Choose 8 best 3rd-place teams to advance</h3>
-              <p className="text-sm text-[#9ca3af]">{sessionBestThirdCodes.length} / 8 selected</p>
+              <p className="text-sm text-[#9ca3af]">{selectedThirdTeamCodes.length} / 8 selected</p>
             </div>
             {hasBestEight && (
               <span className="inline-flex min-h-[32px] items-center rounded-[20px] bg-[#10b981]/20 px-3 text-xs font-semibold text-[#34d399]">
@@ -193,8 +223,8 @@ function GroupStage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {allThirdPlaceTeams.map((entry) => {
-              const selected = sessionBestThirdCodes.includes(entry.team.code);
-              const disabled = !selected && sessionBestThirdCodes.length >= 8;
+              const selected = selectedThirdTeamCodes.includes(entry.team.code);
+              const disabled = !selected && selectedThirdTeamCodes.length >= 8;
               return (
                 <button
                   key={`${entry.groupId}-${entry.team.code}`}
@@ -208,6 +238,17 @@ function GroupStage() {
                 </button>
               );
             })}
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-[#9ca3af]">Select 8 teams first, then confirm when ready.</p>
+            <button
+              type="button"
+              className={`btn-primary ${selectedThirdTeamCodes.length !== 8 || isConfirming ? 'cursor-not-allowed opacity-60' : ''}`}
+              onClick={() => confirmBestThird(selectedThirdTeamCodes)}
+              disabled={selectedThirdTeamCodes.length !== 8 || isConfirming}
+            >
+              {isConfirming ? 'Confirming...' : 'Confirm 8 Teams'}
+            </button>
           </div>
         </div>
       )}

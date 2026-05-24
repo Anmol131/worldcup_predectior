@@ -24,6 +24,14 @@ app.use(
 app.use(morgan('dev'));
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'World Cup Predictor API is running',
+    health: '/api/health',
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'API is running' });
 });

@@ -24,6 +24,49 @@
 			"label": "git-commit-migration-3",
 			"type": "shell",
 			"command": "git add -A; git commit -m 'refactor: migrate predictor to backend-owned MERN state with React Query'"
+		},
+		{
+			"label": "root-install",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"install"
+			]
+		},
+		{
+			"label": "check-concurrently",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"ls",
+				"concurrently",
+				"--depth=0"
+			]
+		},
+		{
+			"label": "root-dev",
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"dev"
+			],
+			"isBackground": true
+		},
+		{
+			"label": "frontend-build-verify",
+			"type": "shell",
+			"command": "cd frontend; npm.cmd run build"
+		},
+		{
+			"label": "check-api-root",
+			"type": "shell",
+			"command": "powershell -NoProfile -Command \"(Invoke-WebRequest -UseBasicParsing http://localhost:5000/).Content\""
+		},
+		{
+			"label": "check-api-root-curl",
+			"type": "shell",
+			"command": "curl.exe -s http://localhost:5000/"
 		}
 	]
 }

@@ -35,7 +35,7 @@ function toDisplayRounds(bracket) {
 
 function KnockoutStage() {
   const navigate = useNavigate();
-  const sessionId = useSession();
+  const { sessionId, isReady } = useSession();
   const { bracket, isLoading, error, pickWinner, isPicking } = useBracket(sessionId);
   const { session, isLoading: sessionLoading } = useSessionData(sessionId);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -85,7 +85,7 @@ function KnockoutStage() {
     );
   };
 
-  if (!sessionId || isLoading || sessionLoading) {
+  if (!isReady || !sessionId || isLoading || sessionLoading) {
     return (
       <section className="mx-auto max-w-[1160px] px-4 pb-16 pt-8 sm:px-6">
         <LoadingSpinner />

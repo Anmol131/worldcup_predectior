@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
@@ -9,8 +8,7 @@ import GroupStage from './pages/GroupStage';
 import KnockoutStage from './pages/KnockoutStage';
 import Champion from './pages/Champion';
 import SharedPredictionPage from './pages/SharedPredictionPage';
-import { useSession } from './hooks/useSession';
-import { sessionAPI } from './services/api';
+import { SessionProvider } from './hooks/useSession';
 
 const pageTransition = {
   initial: { opacity: 0, y: 20 },
@@ -46,24 +44,16 @@ function AnimatedRoutes() {
 }
 
 function App() {
-  const sessionId = useSession();
-
-  useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
-
-    sessionAPI.getOrCreate(sessionId).catch(() => {});
-  }, [sessionId]);
-
   return (
     <BrowserRouter>
-      <ScrollToTop />
-      <div className="app-shell bg-[#0a0f1e] text-[#f9fafb]">
-        <Navbar />
-        <AnimatedRoutes />
-        <Footer />
-      </div>
+      <SessionProvider>
+        <ScrollToTop />
+        <div className="app-shell bg-[#0a0f1e] text-[#f9fafb]">
+          <Navbar />
+          <AnimatedRoutes />
+          <Footer />
+        </div>
+      </SessionProvider>
     </BrowserRouter>
   );
 }

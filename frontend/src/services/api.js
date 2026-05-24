@@ -15,10 +15,17 @@ export const sessionAPI = {
   getSession: (sessionId) => http.get(`/sessions/${sessionId}`),
 };
 
+const formatGroupPosition = (position) => {
+  if (position === 'first') return '1st';
+  if (position === 'second') return '2nd';
+  if (position === 'third') return '3rd';
+  return position;
+};
+
 export const groupsAPI = {
   getGroups: (sessionId) => http.get(`/sessions/${sessionId}/groups`),
   updateGroupPick: (sessionId, groupId, teamCode, position) =>
-    http.patch(`/sessions/${sessionId}/groups/${groupId}`, { teamCode, position }),
+    http.patch(`/sessions/${sessionId}/groups/${groupId}`, { teamCode, position: formatGroupPosition(position) }),
   confirmBestThird: (sessionId, selectedTeamCodes) =>
     http.post(`/sessions/${sessionId}/best-third`, { selectedTeamCodes }),
 };

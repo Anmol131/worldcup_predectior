@@ -30,8 +30,14 @@ function mapPosition(position) {
     return null;
   }
 
-  if (position === '1st' || position === '2nd' || position === '3rd') {
-    return position;
+  const normalizedPosition =
+    position === 'first' ? '1st'
+      : position === 'second' ? '2nd'
+      : position === 'third' ? '3rd'
+      : position;
+
+  if (normalizedPosition === '1st' || normalizedPosition === '2nd' || normalizedPosition === '3rd') {
+    return normalizedPosition;
   }
 
   return null;

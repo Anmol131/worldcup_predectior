@@ -4,19 +4,30 @@ import TeamCard from './TeamCard';
 function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [draftOrder, setDraftOrder] = useState([]);
+  const groupId = group?.groupId || group?.id || '';
+  const groupTitle = group?.title || `Group ${groupId || '?'}`;
+  const teams = Array.isArray(group?.teams) ? group.teams : [];
   const pickedCount = [selection.first, selection.second, selection.third].filter(Boolean).length;
   const isComplete = pickedCount === 3;
   const accentColors = ['#10b981', '#6366f1', '#f59e0b', '#22c55e'];
-  const topBorderColor = accentColors[group.id.charCodeAt(0) % accentColors.length];
+  const accentIndex = groupId ? groupId.charCodeAt(0) % accentColors.length : 0;
+  const topBorderColor = accentColors[accentIndex];
 
   const selectedTeams = useMemo(
     () => [
-      group.teams.find((team) => team.code === selection.first),
-      group.teams.find((team) => team.code === selection.second),
-      group.teams.find((team) => team.code === selection.third),
+      teams.find((team) => team.code === selection.first),
+      teams.find((team) => team.code === selection.second),
+      teams.find((team) => team.code === selection.third),
     ],
-    [group.teams, selection.first, selection.second, selection.third],
+    [teams, selection.first, selection.second, selection.third],
   );
+
+  const normalizeRank = (position) => {
+    if (position === '1st' || position === 'first') return 'first';
+    if (position === '2nd' || position === 'second') return 'second';
+    if (position === '3rd' || position === 'third') return 'third';
+    return null;
+  };
 
   const toggleDraftTeam = (teamCode) => {
     if (draftOrder.includes(teamCode)) {
@@ -35,7 +46,7 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
     }
     const rankOrder = ['first', 'second', 'third'];
     draftOrder.forEach((teamCode, index) => {
-      onSelect(group.id, teamCode, rankOrder[index]);
+      onSelect(groupId, teamCode, rankOrder[index]);
     });
     setIsSelectorOpen(false);
   };
@@ -44,14 +55,14 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
     <>
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#9ca3af]">Quick select 1st/2nd/3rd</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {group.teams.map((team) => {
+        {teams.map((team) => {
           const idx = draftOrder.indexOf(team.code);
           return (
             <button
-              key={`${group.id}-${team.code}-order`}
+              key={`${groupId}-${team.code}-order`}
               type="button"
               onClick={() => toggleDraftTeam(team.code)}
-                disabled={disabled}
+              disabled={disabled}
               className={`min-h-[44px] rounded-lg border px-3 py-2 text-left transition duration-200 active:scale-95 ${idx >= 0 ? 'border-[#10b981] bg-[#10b981]/15 text-[#d1fae5]' : 'border-[#374151] bg-[#111827] text-[#e5e7eb]'}`}
             >
               <span className="mr-2 text-lg leading-none">{team.flag}</span>
@@ -84,8 +95,8 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
     >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#6b7280]">GROUP {group.id}</p>
-          <h2 className="mt-1 text-2xl font-bold text-[#f9fafb]">{group.title}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#6b7280]">GROUP {groupId || '?'}</p>
+          <h2 className="mt-1 text-2xl font-bold text-[#f9fafb]">{groupTitle}</h2>
         </div>
 
         <div className="flex flex-col items-end gap-2">
@@ -126,22 +137,22 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
       )}
 
       <div className="space-y-3">
-        {group.teams.map((team) => (
+        {teams.map((team) => (
           <TeamCard
             key={team.code}
             team={team}
             selectedRank={
-              selection.first === team.code
+              normalizeRank(team.position) === 'first'
                 ? 'first'
-                : selection.second === team.code
+                : normalizeRank(team.position) === 'second'
                   ? 'second'
-                  : selection.third === team.code
+                  : normalizeRank(team.position) === 'third'
                     ? 'third'
                     : null
             }
-            onSelect={(rank) => onSelect(group.id, team.code, rank)}
-              disabled={disabled}
-              isSaving={disabled}
+            onSelect={(rank) => onSelect(groupId, team.code, rank)}
+            disabled={disabled}
+            isSaving={disabled}
           />
         ))}
       </div>

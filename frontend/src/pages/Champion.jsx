@@ -10,7 +10,7 @@ import { useShare } from '../hooks/useSessionData';
 
 function Champion() {
   const navigate = useNavigate();
-  const sessionId = useSession();
+  const { sessionId, isReady } = useSession();
   const { bracket, isLoading, error } = useBracket(sessionId);
   const { share, shareToken, shareUrl, isSharing, shareError } = useShare(sessionId);
   const [predictorName, setPredictorName] = useState('');
@@ -63,7 +63,7 @@ function Champion() {
     }
   };
 
-  if (!sessionId || isLoading) {
+  if (!isReady || !sessionId || isLoading) {
     return (
       <section className="mx-auto max-w-5xl px-6 pb-16 pt-16 sm:px-10">
         <LoadingSpinner />
