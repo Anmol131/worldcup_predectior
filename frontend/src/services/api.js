@@ -28,6 +28,8 @@ export const groupsAPI = {
     http.patch(`/sessions/${sessionId}/groups/${groupId}`, { teamCode, position: formatGroupPosition(position) }),
   confirmBestThird: (sessionId, selectedTeamCodes) =>
     http.post(`/sessions/${sessionId}/best-third`, { selectedTeamCodes }),
+  resetBestThird: (sessionId) =>
+    http.post(`/sessions/${sessionId}/best-third/reset`),
 };
 
 export const bracketAPI = {

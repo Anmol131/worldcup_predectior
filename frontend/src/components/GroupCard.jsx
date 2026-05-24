@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { FaLock } from 'react-icons/fa';
 import TeamCard from './TeamCard';
 
-function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
+function GroupCard({ group, selection = {}, onSelect, disabled = false, locked = false }) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [draftOrder, setDraftOrder] = useState([]);
   const groupId = group?.groupId || group?.id || '';
@@ -109,10 +110,17 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
               setIsSelectorOpen((prev) => !prev);
             }}
             className="min-h-[44px] rounded-lg border border-[#374151] bg-[#0b1224] px-3 text-xs font-semibold uppercase tracking-[0.14em] text-[#d1d5db] transition duration-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={disabled}
+            disabled={disabled || locked}
           >
             Select Order
           </button>
+
+          {locked && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#374151] bg-[#111827] px-3 py-1 text-xs font-semibold text-[#d1fae5]">
+              <FaLock className="h-3 w-3" />
+              Locked
+            </span>
+          )}
 
           {isComplete ? (
             <span className="inline-flex min-h-[32px] items-center rounded-[20px] bg-[#10b981]/20 px-3 text-xs font-semibold text-[#34d399]">
@@ -152,7 +160,6 @@ function GroupCard({ group, selection = {}, onSelect, disabled = false }) {
             }
             onSelect={(rank) => onSelect(groupId, team.code, rank)}
             disabled={disabled}
-            isSaving={disabled}
           />
         ))}
       </div>

@@ -66,6 +66,27 @@ exports.initSession = async (req, res, next) => {
   }
 };
 
+exports.resetBestThird = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await Session.findOne({ sessionId });
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+
+    session.bestThirdConfirmed = false;
+    session.bestThirdTeams = [];
+    session.currentPhase = 'groups';
+    session.lastUpdated = new Date();
+    await session.save();
+
+    return res.status(200).json({ success: true, session });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 exports.getSession = async (req, res, next) => {
   try {
     const { sessionId } = req.params;

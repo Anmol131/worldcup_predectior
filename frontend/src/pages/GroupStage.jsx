@@ -47,9 +47,11 @@ function getThirdTeams(groups = []) {
 function GroupStage() {
   const navigate = useNavigate();
   const { sessionId, isReady } = useSession();
-  const { groups, isLoading, error, pickPosition, isPicking, confirmBestThird, isConfirming } = useGroups(sessionId);
+  const { groups, isLoading, error, pickPosition, isPicking, confirmBestThird, isConfirming, resetBestThird, isResetting } = useGroups(sessionId);
   const { bracket, generateBracket, isGenerating } = useBracket(sessionId);
   const { session, isLoading: sessionLoading } = useSessionData(sessionId);
+  const [confirmed, setConfirmed] = useState(false);
+  const [generateError, setGenerateError] = useState('');
   const [toasts, setToasts] = useState([]);
   const previousCompleteSetRef = useRef(new Set());
 
@@ -61,6 +63,19 @@ function GroupStage() {
     [sessionBestThirdCodesKey],
   );
   const [selectedThirdTeamCodes, setSelectedThirdTeamCodes] = useState(sessionBestThirdCodes);
+  const confirmedSnapshot = useMemo(() => {
+    if (!session?.bestThirdConfirmed) return null;
+
+    try {
+      const raw = localStorage.getItem('wc2026-groups-confirmed');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed.groups)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, [session?.bestThirdConfirmed]);
 
   useEffect(() => {
     if (!sessionBestThirdCodesKey) {
@@ -74,16 +89,18 @@ function GroupStage() {
     });
   }, [sessionBestThirdCodesKey]);
 
+  const isConfirmed = Boolean(session?.bestThirdConfirmed || confirmed);
+  const displayGroups = isConfirmed && confirmedSnapshot?.groups ? confirmedSnapshot.groups : groups;
+
   const progress = useMemo(() => {
-    const complete = (groups || []).filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third).length;
-    return { complete, total: groups?.length || 12 };
-  }, [groups]);
+    const complete = (displayGroups || []).filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third).length;
+    return { complete, total: displayGroups?.length || 12 };
+  }, [displayGroups]);
 
   const thirdPlaceReady = progress.complete === progress.total;
-  const allThirdPlaceTeams = useMemo(() => getThirdTeams(groups || []), [groups]);
+  const allThirdPlaceTeams = useMemo(() => getThirdTeams(displayGroups || []), [displayGroups]);
   const hasBestEight = selectedThirdTeamCodes.length === 8;
-  const isBestThirdConfirmed = Boolean(session?.bestThirdConfirmed);
-  const canGenerate = Boolean(session?.allGroupsDone && isBestThirdConfirmed && hasBestEight && bracket);
+  const canGenerate = Boolean(session?.allGroupsDone && isConfirmed && hasBestEight);
 
   const progressPercent = Math.round((progress.complete / progress.total) * 100);
 
@@ -125,13 +142,38 @@ function GroupStage() {
       return;
     }
 
+    setGenerateError('');
     generateBracket(undefined, {
       onSuccess: () => {
-        const toastId = `${Date.now()}-generated`;
-        setToasts((current) => [...current, { id: toastId, message: '🏆 Bracket generated!' }]);
-        setTimeout(() => {
-          navigate('/knockout');
-        }, 700);
+        navigate('/knockout');
+      },
+      onError: (err) => {
+        setGenerateError(err?.message || 'Failed to generate bracket. Please try again.');
+      },
+    });
+  };
+
+  const handleConfirmBestThird = () => {
+    setGenerateError('');
+    confirmBestThird(selectedThirdTeamCodes, {
+      onSuccess: () => {
+        setConfirmed(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      onError: (err) => {
+        setGenerateError(err?.message || 'Failed to confirm selection.');
+      },
+    });
+  };
+
+  const handleEditGroups = () => {
+    setGenerateError('');
+    resetBestThird(undefined, {
+      onSuccess: () => {
+        setConfirmed(false);
+      },
+      onError: (err) => {
+        setGenerateError(err?.message || 'Failed to reset confirmation.');
       },
     });
   };
@@ -175,18 +217,32 @@ function GroupStage() {
           <ProgressBar value={progressPercent} label="Group completion" />
         </div>
 
-        {session?.allGroupsDone && session?.bestThirdConfirmed && (
-          <motion.button
-            type="button"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${canGenerate ? 'bg-[#10b981] text-[#06231b] animate-bounce' : 'cursor-not-allowed bg-[#374151] text-[#d1d5db]'}`}
-            onClick={handleGenerate}
-            disabled={!canGenerate || isGenerating}
-          >
-            {isGenerating ? 'Generating...' : <>Generate Bracket <FaArrowRight /></>}
-          </motion.button>
+        {isConfirmed && (
+          <div className="mt-4 rounded-3xl border border-[#10b981]/20 bg-[#0f3d2f] p-5 text-[#ecfdf5] shadow-glow sm:flex sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm uppercase tracking-[0.2em] text-[#a7f3d0]">Ready to generate</p>
+              <h2 className="text-xl font-bold text-white">All groups confirmed!</h2>
+              <p className="max-w-2xl text-sm text-[#d9fddf]">Your 8 third-place teams are locked in. Ready to generate your bracket?</p>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:mt-0 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className={`btn-primary inline-flex items-center justify-center gap-2 ${!canGenerate || isGenerating ? 'cursor-not-allowed opacity-70' : ''}`}
+                onClick={handleGenerate}
+                disabled={!canGenerate || isGenerating}
+              >
+                {isGenerating ? 'Generating...' : 'Generate Bracket →'}
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-2xl border border-[#d1fae5]/25 bg-[#0b291e] px-4 py-3 text-sm font-semibold text-[#d1fae5] transition duration-200 hover:border-[#a7f3d0]"
+                onClick={handleEditGroups}
+                disabled={isResetting}
+              >
+                {isResetting ? 'Resetting...' : 'Edit Groups'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -198,11 +254,12 @@ function GroupStage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
           >
-              <GroupCard
+            <GroupCard
               group={group}
               selection={getSelection(group)}
               onSelect={(groupId, teamCode, rank) => pickPosition({ groupId, teamCode, position: rank })}
-              disabled={isPicking || isConfirming}
+              disabled={isConfirming || isConfirmed}
+              locked={isConfirmed}
             />
           </motion.div>
         ))}
@@ -244,7 +301,7 @@ function GroupStage() {
             <button
               type="button"
               className={`btn-primary ${selectedThirdTeamCodes.length !== 8 || isConfirming ? 'cursor-not-allowed opacity-60' : ''}`}
-              onClick={() => confirmBestThird(selectedThirdTeamCodes)}
+              onClick={handleConfirmBestThird}
               disabled={selectedThirdTeamCodes.length !== 8 || isConfirming}
             >
               {isConfirming ? 'Confirming...' : 'Confirm 8 Teams'}

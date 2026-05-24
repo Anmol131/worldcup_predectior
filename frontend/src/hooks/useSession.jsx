@@ -15,7 +15,12 @@ export function SessionProvider({ children }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const id = generateSessionId();
+    const storedId = localStorage.getItem('wc2026-sessionId');
+    const id = storedId || generateSessionId();
+
+    if (!storedId) {
+      localStorage.setItem('wc2026-sessionId', id);
+    }
 
     sessionAPI.getOrCreate(id)
       .then(() => setSessionId(id))

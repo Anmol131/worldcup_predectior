@@ -37,11 +37,12 @@ export function useGroups(sessionId) {
             }
 
             const teams = group.teams.map((team) => {
-              if (team.position === normalizedPosition) {
+              if (team.position === normalizedPosition && team.code !== teamCode) {
                 return { ...team, position: null };
               }
               if (team.code === teamCode) {
-                return { ...team, position: normalizedPosition };
+                const newPos = team.position === normalizedPosition ? null : normalizedPosition;
+                return { ...team, position: newPos };
               }
               return team;
             });
@@ -96,21 +97,56 @@ export function useGroups(sessionId) {
         });
       }
     },
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['groups', sessionId] });
+      }, 500);
+    },
   });
 
   const confirmThirdMutation = useMutation({
     mutationFn: (selectedTeamCodes) => groupsAPI.confirmBestThird(sessionId, selectedTeamCodes),
-    onSuccess: (data) => {
+    onSuccess: (data, selectedTeamCodes) => {
+      const currentGroups = queryClient.getQueryData(['groups', sessionId]);
+      const snapshot = {
+        groups: currentGroups?.groups || [],
+        bestThirdTeams: selectedTeamCodes,
+        confirmedAt: Date.now(),
+      };
+      localStorage.setItem('wc2026-groups-confirmed', JSON.stringify(snapshot));
+
       if (data?.session) {
         queryClient.setQueryData(['session', sessionId], (previousSession) => {
           if (!previousSession) return previousSession;
 
           return {
             ...previousSession,
+            ...data.session,
             session: data.session,
           };
         });
       }
+    },
+  });
+
+  const resetBestThirdMutation = useMutation({
+    mutationFn: () => groupsAPI.resetBestThird(sessionId),
+    onSuccess: (data) => {
+      localStorage.removeItem('wc2026-groups-confirmed');
+
+      if (data?.session) {
+        queryClient.setQueryData(['session', sessionId], (previousSession) => {
+          if (!previousSession) return previousSession;
+
+          return {
+            ...previousSession,
+            ...data.session,
+            session: data.session,
+          };
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['groups', sessionId] });
     },
   });
 
@@ -122,5 +158,7 @@ export function useGroups(sessionId) {
     isPicking: pickMutation.isPending,
     confirmBestThird: confirmThirdMutation.mutate,
     isConfirming: confirmThirdMutation.isPending,
+    resetBestThird: resetBestThirdMutation.mutate,
+    isResetting: resetBestThirdMutation.isPending,
   };
 }

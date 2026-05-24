@@ -6,6 +6,7 @@ const {
   getGroups,
   updateGroupPick,
   confirmBestThird,
+  resetBestThird,
 } = require('../controllers/sessionController');
 const validateRequest = require('../middleware/validateRequest');
 
@@ -52,6 +53,15 @@ router.post(
     validateRequest,
   ],
   confirmBestThird,
+);
+
+router.post(
+  '/:sessionId/best-third/reset',
+  [
+    param('sessionId').isString().withMessage('sessionId is required'),
+    validateRequest,
+  ],
+  resetBestThird,
 );
 
 module.exports = router;
