@@ -44,6 +44,13 @@ function KnockoutStage() {
   const rounds = useMemo(() => toDisplayRounds(bracket), [bracket]);
   const champion = bracket?.champion || null;
 
+  const matchRoundMap = useMemo(() => rounds.reduce((acc, round) => {
+    round.matches.forEach((match) => {
+      acc[match.id] = round.title;
+    });
+    return acc;
+  }, {}), [rounds]);
+
   const roundOrder = ['Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
   const firstIncompleteRound = roundOrder.find((title) => {
     const matches = rounds.find((round) => round.title === title)?.matches || [];
@@ -67,7 +74,8 @@ function KnockoutStage() {
     });
   }, [champion]);
 
-  const handlePickWinner = (matchId, winnerCode, roundTitle) => {
+  const handlePickWinner = (matchId, winnerCode) => {
+    const roundTitle = matchRoundMap[matchId];
     const roundMap = {
       'Round of 32': 'r32',
       'Round of 16': 'r16',
@@ -75,10 +83,16 @@ function KnockoutStage() {
       'Semi Finals': 'sf',
       Final: 'final',
     };
+    const roundKey = roundMap[roundTitle];
+
+    if (!roundKey) {
+      console.error('Unable to resolve round for match:', matchId, roundTitle);
+      return;
+    }
 
     setPendingMatchId(matchId);
     pickWinner(
-      { round: roundMap[roundTitle], matchId, winnerCode },
+      { round: roundKey, matchId, winnerCode },
       {
         onSettled: () => setPendingMatchId(null),
       },
@@ -87,7 +101,7 @@ function KnockoutStage() {
 
   if (!isReady || !sessionId || isLoading || sessionLoading) {
     return (
-      <section className="mx-auto max-w-[1160px] px-4 pb-16 pt-8 sm:px-6">
+      <section className="mx-auto max-w-full px-4 pb-16 pt-8 sm:px-6">
         <LoadingSpinner />
       </section>
     );
@@ -117,7 +131,7 @@ function KnockoutStage() {
   }
 
   return (
-    <section className="safe-bottom mx-auto max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
+    <section className="safe-bottom mx-auto max-w-full px-3 pb-16 pt-4 sm:px-5">
       <div className="mx-auto mb-4 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 shadow-glow sm:max-w-full">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -143,7 +157,7 @@ function KnockoutStage() {
       <Bracket
         rounds={rounds}
         pendingMatchId={pendingMatchId}
-        onPick={isPicking ? undefined : (matchId, winnerCode) => handlePickWinner(matchId, winnerCode, rounds.find((round) => round.matches.some((match) => match.id === matchId))?.title)}
+        onPick={isPicking ? undefined : handlePickWinner}
       />
 
       {pendingMatchId && (

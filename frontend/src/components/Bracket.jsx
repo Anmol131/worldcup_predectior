@@ -297,7 +297,7 @@ function Bracket({ rounds, onPick, onRevealChampion, pendingMatchId = null }) {
 
       <div className="hidden lg:block">
         <div className="px-6">
-          <div className="bracket-scrollbar overflow-x-auto rounded-xl border border-[#1f2937] desktop-bracket-bg p-4">
+          <div className="bracket-scrollbar overflow-x-auto rounded-xl desktop-bracket-bg p-4">
             <div ref={contentRef} className="relative inline-flex min-w-max gap-8 pb-6 pr-6 pt-2">
               <svg
                 className="pointer-events-none absolute left-0 top-0 z-0"

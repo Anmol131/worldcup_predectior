@@ -1,49 +1,4 @@
-function generateR32Matchups(groups, bestThirdTeams) {
-  const getTeam = (groupId, position) => {
-    const group = groups.find((entry) => entry.groupId === groupId);
-    return group?.teams?.find((team) => team.position === position) || null;
-  };
-
-  return [
-    { matchId: 'R32-M01', path: 'A', teamA: getTeam('A', '1st'), teamB: bestThirdTeams[0] || null },
-    { matchId: 'R32-M02', path: 'A', teamA: getTeam('C', '1st'), teamB: getTeam('D', '2nd') },
-    { matchId: 'R32-M03', path: 'A', teamA: getTeam('B', '1st'), teamB: getTeam('A', '2nd') },
-    { matchId: 'R32-M04', path: 'A', teamA: getTeam('D', '1st'), teamB: getTeam('C', '2nd') },
-    { matchId: 'R32-M05', path: 'A', teamA: getTeam('E', '1st'), teamB: bestThirdTeams[1] || null },
-    { matchId: 'R32-M06', path: 'A', teamA: getTeam('G', '1st'), teamB: getTeam('H', '2nd') },
-    { matchId: 'R32-M07', path: 'A', teamA: getTeam('F', '1st'), teamB: getTeam('E', '2nd') },
-    { matchId: 'R32-M08', path: 'A', teamA: getTeam('H', '1st'), teamB: getTeam('G', '2nd') },
-    { matchId: 'R32-M09', path: 'B', teamA: getTeam('I', '1st'), teamB: bestThirdTeams[2] || null },
-    { matchId: 'R32-M10', path: 'B', teamA: getTeam('K', '1st'), teamB: getTeam('L', '2nd') },
-    { matchId: 'R32-M11', path: 'B', teamA: getTeam('J', '1st'), teamB: getTeam('I', '2nd') },
-    { matchId: 'R32-M12', path: 'B', teamA: getTeam('L', '1st'), teamB: getTeam('K', '2nd') },
-    { matchId: 'R32-M13', path: 'B', teamA: bestThirdTeams[3] || null, teamB: bestThirdTeams[4] || null },
-    { matchId: 'R32-M14', path: 'B', teamA: bestThirdTeams[5] || null, teamB: bestThirdTeams[6] || null },
-    { matchId: 'R32-M15', path: 'B', teamA: bestThirdTeams[7] || null, teamB: getTeam('F', '2nd') },
-    { matchId: 'R32-M16', path: 'B', teamA: getTeam('J', '2nd'), teamB: getTeam('C', '3rd') },
-  ].map((match, index) => ({ ...match, winner: null, matchIndex: index, round: 'r32' }));
-}
-
-function createEmptyBracketRounds() {
-  const createRound = (round, count) => Array.from({ length: count }, (_, index) => ({
-    matchId: `${round.toUpperCase()}-M${String(index + 1).padStart(2, '0')}`,
-    matchIndex: index,
-    teamA: { code: '', name: 'TBD', flag: '' },
-    teamB: { code: '', name: 'TBD', flag: '' },
-    winner: null,
-    path: index < Math.ceil(count / 2) ? 'A' : 'B',
-    round,
-  }));
-
-  return {
-    r16: createRound('r16', 8),
-    qf: createRound('qf', 4),
-    sf: createRound('sf', 2),
-    final: createRound('final', 1),
-  };
-}
-
-module.exports = { generateR32Matchups, createEmptyBracketRounds };const roundOrder = ['r32', 'r16', 'qf', 'sf', 'final'];
+const roundOrder = ['r32', 'r16', 'qf', 'sf', 'final'];
 
 const round32Slots = [
   { matchId: 'R32-M01', teamA: { type: 'group', groupId: 'A', rank: '1st' }, teamB: { type: 'third', groups: ['B', 'C', 'D', 'E', 'F'] } },
@@ -124,6 +79,7 @@ function generateR32Matchups(groups, bestThirdTeams) {
     teamA: resolveSource(slot.teamA, normalizedGroups, rankedThirds, thirdPointer),
     teamB: resolveSource(slot.teamB, normalizedGroups, rankedThirds, thirdPointer),
     winner: null,
+    matchIndex: index,
     path: index < 8 ? 'A' : 'B',
     round: 'r32',
   }));
@@ -132,6 +88,7 @@ function generateR32Matchups(groups, bestThirdTeams) {
 function createEmptyBracketRounds() {
   const buildRound = (prefix, count) => Array.from({ length: count }, (_, index) => ({
     matchId: `${prefix.toUpperCase()}-M${String(index + 1).padStart(2, '0')}`,
+    matchIndex: index,
     teamA: { code: '', name: 'TBD', flag: '' },
     teamB: { code: '', name: 'TBD', flag: '' },
     winner: null,

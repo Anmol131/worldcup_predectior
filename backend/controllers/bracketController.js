@@ -17,6 +17,11 @@ function toTeam(team) {
 
 function roundToKey(round) {
   return ({
+    'Round of 32': 'r32',
+    'Round of 16': 'r16',
+    'Quarter Finals': 'qf',
+    'Semi Finals': 'sf',
+    Final: 'final',
     r32: 'r32',
     r16: 'r16',
     qf: 'qf',

@@ -12,7 +12,7 @@ const teamSchema = new mongoose.Schema(
 const matchSchema = new mongoose.Schema(
   {
     matchId: { type: String, required: true },
-    matchIndex: { type: Number, required: true },
+    matchIndex: { type: Number, default: 0 },
     teamA: { type: teamSchema, default: () => ({ code: '', name: '', flag: '' }) },
     teamB: { type: teamSchema, default: () => ({ code: '', name: '', flag: '' }) },
     winner: { type: teamSchema, default: null },
