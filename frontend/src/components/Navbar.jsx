@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { FaBars, FaCrown } from 'react-icons/fa';
 
 function Navbar() {
@@ -15,7 +15,7 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#1f2937] bg-[#0a0f1e]/90 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1160px] items-center justify-between px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3 text-[#f9fafb]">
+        <Link to="/" className="flex items-center gap-3 text-[#f9fafb] transition hover:opacity-90">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1f2937] bg-[#111827] text-[#10b981] shadow-glow">
             <FaCrown className="h-5 w-5" />
           </div>
@@ -23,7 +23,7 @@ function Navbar() {
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#6b7280]">World Cup 2026</p>
             <p className="text-sm font-semibold text-[#f9fafb]">Predictor Arena</p>
           </div>
-        </div>
+        </Link>
 
         <nav className="hidden items-center gap-2 md:flex">
           {navItems.map((item) => (
