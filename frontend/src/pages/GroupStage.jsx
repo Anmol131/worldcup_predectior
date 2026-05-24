@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import groups from '../data/groups';
 import usePredictionStore from '../store/predictionStore';
+import { areThirdPlaceTeamsReady, getGroupProgress } from '../utils/tournament';
 import GroupCard from '../components/GroupCard';
 import ProgressBar from '../components/ProgressBar';
 
@@ -9,11 +10,10 @@ function GroupStage() {
   const navigate = useNavigate();
   const { groupSelections, selectGroupTeam, generateKnockout } = usePredictionStore();
 
-  const completedGroups = groups.filter((group) => {
-    const selection = groupSelections[group.id];
-    return selection?.first && selection?.second;
-  }).length;
-  const progress = Math.round((completedGroups / groups.length) * 100);
+  const progress = getGroupProgress(groupSelections);
+  const progressPercent = Math.round((progress.complete / progress.total) * 100);
+  const thirdPlaceReady = areThirdPlaceTeamsReady(groupSelections);
+  const canGenerate = progress.complete === progress.total && thirdPlaceReady;
 
   const handleGenerate = () => {
     const ok = generateKnockout();
@@ -28,14 +28,15 @@ function GroupStage() {
         <div className="space-y-3">
           <p className="text-sm uppercase tracking-[0.24em] text-cyan-200">Group Stage Predictor</p>
           <h1 className="text-4xl font-semibold text-white sm:text-5xl">Build your 2026 World Cup group winners.</h1>
-          <p className="max-w-3xl text-base leading-7 text-slate-300">Select top two teams for every group. Once your picks are complete, generate the knockout bracket automatically and continue the prediction journey.</p>
+          <p className="max-w-3xl text-base leading-7 text-slate-300">Select top two teams for every group. Once your picks are complete, the 8 best third-place teams will advance automatically, then generate the knockout bracket.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <ProgressBar value={progress} label={`${completedGroups} / ${groups.length} groups complete`} />
+          <ProgressBar value={progressPercent} label={`${progress.complete} / ${progress.total} groups complete`} />
           <button
-            className="btn-primary w-full md:w-auto"
+            className={`btn-primary w-full md:w-auto ${!canGenerate ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={handleGenerate}
+            disabled={!canGenerate}
           >
             Generate Knockout Stage
           </button>
