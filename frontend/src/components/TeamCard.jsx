@@ -1,38 +1,53 @@
+const rankStyles = {
+  first: 'bg-[#f59e0b] text-[#111827] border-[#f59e0b]',
+  second: 'bg-[#94a3b8] text-[#111827] border-[#94a3b8]',
+  third: 'bg-[#b45309] text-[#f9fafb] border-[#b45309]',
+};
+
 function TeamCard({ team, selectedRank, onSelect }) {
   const isFirst = selectedRank === 'first';
   const isSecond = selectedRank === 'second';
   const isThird = selectedRank === 'third';
+  const rowAccent = isFirst ? 'border-l-[#f59e0b]' : isSecond ? 'border-l-[#94a3b8]' : isThird ? 'border-l-[#b45309]' : 'border-l-transparent';
+
+  const rankButtonClass = (rank, selected) => {
+    if (selected) {
+      return `min-h-[44px] rounded-[20px] border px-3 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-95 ${rankStyles[rank]}`;
+    }
+    return 'min-h-[44px] rounded-[20px] border border-[#374151] bg-[#0b1224] px-3 text-xs font-semibold uppercase tracking-wide text-[#9ca3af] transition duration-200 hover:border-[#4b5563] active:scale-95';
+  };
 
   return (
-    <div className="rounded-[1.8rem] border border-white/10 bg-[#0f172a]/70 p-4 transition hover:border-cyan-400/20">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-white/10 text-2xl">
+    <div className={`rounded-xl border border-[#1f2937] border-l-4 ${rowAccent} bg-[#0c1426] p-3 transition duration-200`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#1f2937] bg-[#111827] text-[28px] leading-none">
             {team.flag}
           </div>
           <div>
-            <p className="text-base font-semibold text-white">{team.name}</p>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{team.code}</p>
+            <p className="text-base font-bold text-[#f9fafb]">{team.name}</p>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#6b7280]">{team.code}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
-            className={`btn-secondary ${isFirst ? '!border-cyan-400/70 !bg-cyan-500/15 !text-cyan-100' : ''}`}
+            className={rankButtonClass('first', isFirst)}
             onClick={() => onSelect('first')}
           >
             1st
           </button>
           <button
             type="button"
-            className={`btn-secondary ${isSecond ? '!border-violet-400/70 !bg-violet-500/15 !text-violet-100' : ''}`}
+            className={rankButtonClass('second', isSecond)}
             onClick={() => onSelect('second')}
           >
             2nd
           </button>
           <button
             type="button"
-            className={`btn-secondary ${isThird ? '!border-emerald-400/70 !bg-emerald-500/15 !text-emerald-100' : ''}`}
+            className={rankButtonClass('third', isThird)}
             onClick={() => onSelect('third')}
           >
             3rd

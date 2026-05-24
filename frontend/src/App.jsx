@@ -42,7 +42,7 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,229,255,0.12),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(139,92,246,0.15),_transparent_30%),linear-gradient(180deg,#0B1020_0%,#080C18_100%)] text-white">
+      <div className="app-shell bg-[#0a0f1e] text-[#f9fafb]">
         <Navbar />
         <AnimatedRoutes />
         <Footer />

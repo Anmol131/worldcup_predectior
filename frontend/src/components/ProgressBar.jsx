@@ -1,14 +1,16 @@
 function ProgressBar({ value, label }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-glow">
-      <div className="mb-3 flex items-center justify-between text-sm text-slate-300">
-        <span className="font-medium text-white">Progress</span>
-        <span>{value}%</span>
+    <div className="rounded-xl border border-[#1f2937] bg-[#0b1224] p-3">
+      <div className="mb-2 flex items-center justify-between text-xs text-[#9ca3af]">
+        <span className="font-semibold uppercase tracking-[0.14em]">{label}</span>
+        <span className="text-[#d1fae5]">{value}%</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 transition-all" style={{ width: `${value}%` }} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-[#1f2937]">
+        <div
+          className="h-full rounded-full bg-[#10b981] transition-all duration-300"
+          style={{ width: `${value}%` }}
+        />
       </div>
-      <p className="mt-3 text-sm text-slate-400">{label}</p>
     </div>
   );
 }

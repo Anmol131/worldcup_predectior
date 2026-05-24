@@ -1,107 +1,141 @@
 import { useMemo, useState } from 'react';
+import { FaArrowRight, FaTrophy } from 'react-icons/fa';
 import MatchCard from './MatchCard';
 
 const ROUND_LABELS = {
-  'Round of 32': 'Round of 32',
-  'Round of 16': 'Round of 16',
-  'Quarter Finals': 'Quarter-finals',
-  'Semi Finals': 'Semi-finals',
+  'Round of 32': 'R32',
+  'Round of 16': 'R16',
+  'Quarter Finals': 'QF',
+  'Semi Finals': 'SF',
   Final: 'Final',
 };
 
-const ROUND_LAYOUT = {
-  'Round of 32': 'space-y-3',
-  'Round of 16': 'space-y-12 pt-8',
-  'Quarter Finals': 'space-y-20 pt-20',
-  'Semi Finals': 'space-y-28 pt-36',
-  Final: 'space-y-0 pt-[15.5rem]',
-};
+const ROUND_ORDER = ['Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
 
-function Bracket({ rounds, onPick }) {
-  const [activeRound, setActiveRound] = useState(rounds[0]?.title || 'Round of 32');
+function Bracket({ rounds, onPick, onRevealChampion }) {
+  const [activeRound, setActiveRound] = useState(rounds[0]?.title || ROUND_ORDER[0]);
 
   const roundsByTitle = useMemo(
     () => rounds.reduce((acc, round) => ({ ...acc, [round.title]: round }), {}),
     [rounds],
   );
 
-  const desktopRoundOrder = ['Round of 32', 'Round of 16', 'Quarter Finals', 'Semi Finals', 'Final'];
+  const activeIndex = ROUND_ORDER.indexOf(activeRound);
+  const activeRoundMatches = roundsByTitle[activeRound]?.matches || [];
+  const activeComplete = activeRoundMatches.length > 0 && activeRoundMatches.every((match) => match.winner);
+  const isFinalRound = activeRound === 'Final';
+
+  const handleNextRound = () => {
+    if (!activeComplete || isFinalRound) {
+      return;
+    }
+    setActiveRound(ROUND_ORDER[Math.min(activeIndex + 1, ROUND_ORDER.length - 1)]);
+  };
+
   const r32Matches = roundsByTitle['Round of 32']?.matches || [];
+  const r16Matches = roundsByTitle['Round of 16']?.matches || [];
+  const qfMatches = roundsByTitle['Quarter Finals']?.matches || [];
+  const sfMatches = roundsByTitle['Semi Finals']?.matches || [];
+  const finalMatch = roundsByTitle.Final?.matches?.[0];
+
   const pathA = r32Matches.slice(0, 8);
   const pathB = r32Matches.slice(8, 16);
+  const pathA16 = r16Matches.slice(0, 4);
+  const pathB16 = r16Matches.slice(4, 8);
+  const pathAQf = qfMatches.slice(0, 2);
+  const pathBQf = qfMatches.slice(2, 4);
 
   return (
-    <>
-      <div className="mb-6 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#0f172a]/70 p-2 lg:hidden">
-        {rounds.map((round) => (
+    <div className="space-y-4">
+      <div className="flex gap-2 overflow-x-auto rounded-[20px] border border-[#1f2937] bg-[#111827] p-2 lg:hidden">
+        {ROUND_ORDER.map((roundTitle) => (
           <button
-            key={round.title}
+            key={roundTitle}
             type="button"
-            onClick={() => setActiveRound(round.title)}
-            className={`whitespace-nowrap rounded-xl px-4 py-2 text-xs uppercase tracking-[0.22em] transition ${activeRound === round.title ? 'bg-cyan-500/20 text-cyan-100' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}
+            onClick={() => setActiveRound(roundTitle)}
+            className={`whitespace-nowrap rounded-[20px] border px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition duration-200 active:scale-95 ${activeRound === roundTitle ? 'border-[#10b981] text-[#d1fae5]' : 'border-transparent text-[#9ca3af]'}`}
           >
-            {ROUND_LABELS[round.title] || round.title}
+            {ROUND_LABELS[roundTitle] || roundTitle}
           </button>
         ))}
       </div>
 
-      <div className="space-y-4 lg:hidden">
-        {(roundsByTitle[activeRound]?.matches || []).map((match) => (
-          <MatchCard key={match.id} match={match} onPick={onPick} className="w-full max-w-none" />
+      <div className="space-y-3 lg:hidden">
+        {activeRoundMatches.map((match, index) => (
+          <MatchCard
+            key={match.id}
+            match={match}
+            onPick={onPick}
+            className="w-full"
+            pathLabel={index < activeRoundMatches.length / 2 ? 'Path A' : 'Path B'}
+            highlightFinal={activeRound === 'Final'}
+          />
         ))}
       </div>
 
-      <div className="hidden overflow-x-auto pb-10 lg:block">
-        <div className="relative flex min-w-[1220px] gap-12 pr-10">
-          {desktopRoundOrder.map((roundTitle) => {
-            const round = roundsByTitle[roundTitle] || { matches: [] };
-            const showConnector = roundTitle !== 'Final';
-            const showIncoming = roundTitle !== 'Round of 32';
+      <div className="hidden lg:block">
+        <div className="grid grid-cols-[1fr_280px_1fr] gap-5">
+          <div className="rounded-xl border border-[#1f2937] bg-[#111827] p-3">
+            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#9ca3af]">Path A</p>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-2">{pathA.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path A" />)}</div>
+              <div className="space-y-6 pt-6">{pathA16.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path A" />)}</div>
+              <div className="space-y-16 pt-16">{pathAQf.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path A" />)}</div>
+              <div className="space-y-32 pt-28">{sfMatches[0] && <MatchCard match={sfMatches[0]} onPick={onPick} compact pathLabel="Path A" />}</div>
+            </div>
+          </div>
 
-            return (
-              <div key={roundTitle} className="min-w-[190px]">
-                <div className="sticky top-4 z-10 mb-4 rounded-2xl border border-white/10 bg-[#0f172a]/95 px-4 py-3 text-center text-xs uppercase tracking-[0.24em] text-slate-300 shadow-glow backdrop-blur">
-                  {ROUND_LABELS[roundTitle] || roundTitle}
-                </div>
+          <div className="relative rounded-xl border border-[#f59e0b]/50 bg-[#111827] p-4">
+            <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 280 560" preserveAspectRatio="none" aria-hidden>
+              <path d="M0,170 L70,170 L70,280 L130,280" fill="none" stroke="#1f2937" strokeWidth="1" />
+              <path d="M280,390 L210,390 L210,280 L150,280" fill="none" stroke="#1f2937" strokeWidth="1" />
+            </svg>
+            <div className="mb-3 flex items-center justify-center gap-2 text-[#f59e0b]">
+              <FaTrophy className="h-4 w-4" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em]">Final</p>
+            </div>
+            {finalMatch ? <MatchCard match={finalMatch} onPick={onPick} className="mx-auto" pathLabel="Final" highlightFinal /> : null}
+            {finalMatch?.winner && (
+              <button type="button" onClick={onRevealChampion} className="btn-primary mt-4 w-full">
+                Reveal Champion
+              </button>
+            )}
+          </div>
 
-                {roundTitle === 'Round of 32' ? (
-                  <div className="space-y-6">
-                    <div>
-                      <p className="mb-2 text-center text-xs uppercase tracking-[0.24em] text-cyan-200">Path A</p>
-                      <div className="space-y-3">
-                        {pathA.map((match) => (
-                          <MatchCard key={match.id} match={match} onPick={onPick} showConnector={showConnector} />
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="mb-2 text-center text-xs uppercase tracking-[0.24em] text-violet-200">Path B</p>
-                      <div className="space-y-3">
-                        {pathB.map((match) => (
-                          <MatchCard key={match.id} match={match} onPick={onPick} showConnector={showConnector} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className={ROUND_LAYOUT[roundTitle] || 'space-y-3'}>
-                    {round.matches.map((match) => (
-                      <MatchCard
-                        key={match.id}
-                        match={match}
-                        onPick={onPick}
-                        showConnector={showConnector}
-                        showIncoming={showIncoming}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <div className="rounded-xl border border-[#1f2937] bg-[#111827] p-3">
+            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#9ca3af]">Path B</p>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-32 pt-28">{sfMatches[1] && <MatchCard match={sfMatches[1]} onPick={onPick} compact pathLabel="Path B" />}</div>
+              <div className="space-y-16 pt-16">{pathBQf.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path B" />)}</div>
+              <div className="space-y-6 pt-6">{pathB16.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path B" />)}</div>
+              <div className="space-y-2">{pathB.map((match) => <MatchCard key={match.id} match={match} onPick={onPick} compact pathLabel="Path B" />)}</div>
+            </div>
+          </div>
         </div>
       </div>
-    </>
+
+      <div className="safe-bottom sticky bottom-0 z-30 border-t border-[#1f2937] bg-[#0a0f1e]/95 px-3 py-3 backdrop-blur-lg lg:hidden">
+        {!isFinalRound ? (
+          <button
+            type="button"
+            onClick={handleNextRound}
+            disabled={!activeComplete}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${activeComplete ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
+          >
+            → Next Round <FaArrowRight className="h-3 w-3" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onRevealChampion}
+            disabled={!finalMatch?.winner}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${finalMatch?.winner ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
+          >
+            Reveal Champion
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
