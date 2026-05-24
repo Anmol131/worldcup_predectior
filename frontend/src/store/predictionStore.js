@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import groups from '../data/groups';
-import { isGroupStageComplete, getDescendantMatchIds, knockoutSchema } from '../utils/tournament';
+import { isGroupStageComplete, areThirdPlaceTeamsReady, getDescendantMatchIds, knockoutSchema } from '../utils/tournament';
 
 const defaultSelections = {};
 
@@ -41,6 +41,9 @@ const usePredictionStore = create((set, get) => ({
   generateKnockout: () => {
     const selections = get().groupSelections;
     if (!isGroupStageComplete(selections)) {
+      return false;
+    }
+    if (!areThirdPlaceTeamsReady(selections)) {
       return false;
     }
     set({ generated: true, matchWinners: {}, champion: null });
