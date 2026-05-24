@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import api, { bracketApi } from '../services/api';
 import groups from '../data/groups';
 import {
   isGroupStageComplete,
@@ -21,6 +22,7 @@ const usePredictionStore = create((set, get) => ({
   matchWinners: {},
   generated: false,
   champion: null,
+  sessionId: null,
 
   selectGroupTeam: (groupId, teamCode, rank) => {
     set((state) => {
@@ -75,7 +77,20 @@ const usePredictionStore = create((set, get) => ({
     if (!isBestThirdSelectionValid(selections, bestThirdPlaceTeamCodes)) {
       return false;
     }
-    set({ generated: true, matchWinners: {}, champion: null });
+    // generate bracket on backend and persist sessionId
+    (async () => {
+      try {
+        const sessionId = get().sessionId || crypto?.randomUUID?.() || `s_${Date.now()}`;
+        const res = await bracketApi.generate(sessionId);
+        if (res?.data?.success) {
+          set({ generated: true, matchWinners: {}, champion: null, sessionId: res.data.data.sessionId || sessionId });
+        } else {
+          set({ generated: true, matchWinners: {}, champion: null, sessionId });
+        }
+      } catch (err) {
+        set({ generated: true, matchWinners: {}, champion: null });
+      }
+    })();
     return true;
   },
 
@@ -92,7 +107,27 @@ const usePredictionStore = create((set, get) => ({
       const finalMatchIds = knockoutSchema.filter((match) => match.round === 'Final').map((match) => match.id);
       const champion = finalMatchIds.some((id) => nextWinners[id]) ? nextWinners[finalMatchIds[0]] : null;
 
+      // optimistically update and send to backend
+      (async () => {
+        try {
+          const sessionId = get().sessionId;
+          if (sessionId) {
+            await bracketApi.updateMatch(sessionId, matchId, teamCode, teamCode);
+          }
+        } catch (e) {
+          // ignore backend errors for now
+        }
+      })();
+
       return { matchWinners: nextWinners, champion };
+    });
+  },
+
+  ensureSession: () => {
+    set((state) => {
+      if (state.sessionId) return {};
+      const sid = crypto?.randomUUID?.() || `s_${Date.now()}`;
+      return { sessionId: sid };
     });
   },
 
