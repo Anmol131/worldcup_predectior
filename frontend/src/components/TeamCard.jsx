@@ -16,13 +16,15 @@ function TeamCard({ team, selectedRank, onSelect }) {
         </div>
         <div className="flex items-center gap-2">
           <button
-            className={`btn-secondary ${isFirst ? 'border-cyan-400/70 bg-cyan-500/15 text-cyan-100' : ''}`}
+            type="button"
+            className={`btn-secondary ${isFirst ? '!border-cyan-400/70 !bg-cyan-500/15 !text-cyan-100' : ''}`}
             onClick={() => onSelect('first')}
           >
             1st
           </button>
           <button
-            className={`btn-secondary ${isSecond ? 'border-violet-400/70 bg-violet-500/15 text-violet-100' : ''}`}
+            type="button"
+            className={`btn-secondary ${isSecond ? '!border-violet-400/70 !bg-violet-500/15 !text-violet-100' : ''}`}
             onClick={() => onSelect('second')}
           >
             2nd
