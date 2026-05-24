@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './pages/Home';
 import GroupStage from './pages/GroupStage';
 import KnockoutStage from './pages/KnockoutStage';
@@ -42,6 +43,7 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="app-shell bg-[#0a0f1e] text-[#f9fafb]">
         <Navbar />
         <AnimatedRoutes />

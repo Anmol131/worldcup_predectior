@@ -94,3 +94,30 @@ body {
   background: rgba(17, 24, 39, 0.85);
   color: #d1d5db;
 }
+
+.desktop-bracket-bg {
+  background-color: #0d1117;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bracket-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #1f2937;
+}
+
+.bracket-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.bracket-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 9999px;
+}
+
+.bracket-scrollbar::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 9999px;
+}
