@@ -1,22 +1,22 @@
 const roundOrder = ['r32', 'r16', 'qf', 'sf', 'final'];
 
 const round32Slots = [
-  { matchId: 'R32-M01', teamA: { type: 'group', groupId: 'A', rank: '1st' }, teamB: { type: 'third', groups: ['B', 'C', 'D', 'E', 'F'] } },
+  { matchId: 'R32-M01', teamA: { type: 'group', groupId: 'A', rank: '1st' }, teamB: { type: 'third' } },
   { matchId: 'R32-M02', teamA: { type: 'group', groupId: 'C', rank: '1st' }, teamB: { type: 'group', groupId: 'D', rank: '2nd' } },
   { matchId: 'R32-M03', teamA: { type: 'group', groupId: 'B', rank: '1st' }, teamB: { type: 'group', groupId: 'A', rank: '2nd' } },
   { matchId: 'R32-M04', teamA: { type: 'group', groupId: 'D', rank: '1st' }, teamB: { type: 'group', groupId: 'C', rank: '2nd' } },
-  { matchId: 'R32-M05', teamA: { type: 'group', groupId: 'E', rank: '1st' }, teamB: { type: 'third', groups: ['A', 'B', 'C', 'D'] } },
+  { matchId: 'R32-M05', teamA: { type: 'group', groupId: 'E', rank: '1st' }, teamB: { type: 'third' } },
   { matchId: 'R32-M06', teamA: { type: 'group', groupId: 'G', rank: '1st' }, teamB: { type: 'group', groupId: 'H', rank: '2nd' } },
   { matchId: 'R32-M07', teamA: { type: 'group', groupId: 'F', rank: '1st' }, teamB: { type: 'group', groupId: 'E', rank: '2nd' } },
   { matchId: 'R32-M08', teamA: { type: 'group', groupId: 'H', rank: '1st' }, teamB: { type: 'group', groupId: 'G', rank: '2nd' } },
-  { matchId: 'R32-M09', teamA: { type: 'group', groupId: 'I', rank: '1st' }, teamB: { type: 'third', groups: ['G', 'H', 'J', 'K', 'L'] } },
+  { matchId: 'R32-M09', teamA: { type: 'group', groupId: 'I', rank: '1st' }, teamB: { type: 'third' } },
   { matchId: 'R32-M10', teamA: { type: 'group', groupId: 'K', rank: '1st' }, teamB: { type: 'group', groupId: 'L', rank: '2nd' } },
   { matchId: 'R32-M11', teamA: { type: 'group', groupId: 'J', rank: '1st' }, teamB: { type: 'group', groupId: 'I', rank: '2nd' } },
   { matchId: 'R32-M12', teamA: { type: 'group', groupId: 'L', rank: '1st' }, teamB: { type: 'group', groupId: 'K', rank: '2nd' } },
-  { matchId: 'R32-M13', teamA: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] }, teamB: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] } },
-  { matchId: 'R32-M14', teamA: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] }, teamB: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] } },
-  { matchId: 'R32-M15', teamA: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] }, teamB: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] } },
-  { matchId: 'R32-M16', teamA: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] }, teamB: { type: 'third', groups: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] } },
+  { matchId: 'R32-M13', teamA: { type: 'third' }, teamB: { type: 'third' } },
+  { matchId: 'R32-M14', teamA: { type: 'third' }, teamB: { type: 'third' } },
+  { matchId: 'R32-M15', teamA: { type: 'third' }, teamB: { type: 'group', groupId: 'F', rank: '2nd' } },
+  { matchId: 'R32-M16', teamA: { type: 'group', groupId: 'J', rank: '2nd' }, teamB: { type: 'group', groupId: 'C', rank: '3rd' } },
 ];
 
 // TODO: Update with official FIFA 2026 bracket seeding
