@@ -7,10 +7,10 @@ import Bracket from '../components/Bracket';
 
 function KnockoutStage() {
   const navigate = useNavigate();
-  const { groupSelections, matchWinners, setMatchWinner, generated } = usePredictionStore();
+  const { groupSelections, bestThirdPlaceTeamCodes, matchWinners, setMatchWinner, generated } = usePredictionStore();
   const { rounds, champion } = useMemo(
-    () => buildKnockoutRounds(groupSelections, matchWinners),
-    [groupSelections, matchWinners],
+    () => buildKnockoutRounds(groupSelections, matchWinners, bestThirdPlaceTeamCodes),
+    [groupSelections, matchWinners, bestThirdPlaceTeamCodes],
   );
 
   const progress = getGroupProgress(groupSelections);

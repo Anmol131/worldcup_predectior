@@ -1,6 +1,7 @@
 function TeamCard({ team, selectedRank, onSelect }) {
   const isFirst = selectedRank === 'first';
   const isSecond = selectedRank === 'second';
+  const isThird = selectedRank === 'third';
 
   return (
     <div className="rounded-[1.8rem] border border-white/10 bg-[#0f172a]/70 p-4 transition hover:border-cyan-400/20">
@@ -28,6 +29,13 @@ function TeamCard({ team, selectedRank, onSelect }) {
             onClick={() => onSelect('second')}
           >
             2nd
+          </button>
+          <button
+            type="button"
+            className={`btn-secondary ${isThird ? '!border-emerald-400/70 !bg-emerald-500/15 !text-emerald-100' : ''}`}
+            onClick={() => onSelect('third')}
+          >
+            3rd
           </button>
         </div>
       </div>

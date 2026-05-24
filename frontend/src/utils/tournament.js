@@ -63,28 +63,24 @@ export function getGroupSelectionTeam(groupId, selection, rank) {
     return group.teams.find((team) => team.code === chosenCode) || createPlaceholder(rank);
   }
 
-  if (rank === 'third') {
-    const first = selection?.first;
-    const second = selection?.second;
-    const remaining = group.teams.find((team) => team.code !== first && team.code !== second);
-    return remaining || createPlaceholder(rank);
-  }
-
   return createPlaceholder(rank);
 }
 
 export function createPlaceholder(label) {
   return {
     code: '',
-    name: label === 'third' ? 'Best Third Place' : 'TBD',
+    name: label === 'third' ? '3rd Place TBD' : 'TBD',
     flag: '⛳',
     placeholder: true,
   };
 }
 
-export function resolveParticipant(source, selections, results) {
+export function resolveParticipant(source, selections, results, thirdPlaceSlots) {
   if (!source) return createPlaceholder('TBD');
   if (source.type === 'group') {
+    if (source.rank === 'third' && thirdPlaceSlots?.[source.group]) {
+      return thirdPlaceSlots[source.group];
+    }
     return getGroupSelectionTeam(source.group, selections?.[source.group], source.rank);
   }
 
@@ -105,15 +101,16 @@ export function resolveParticipant(source, selections, results) {
   return createPlaceholder('TBD');
 }
 
-export function buildKnockoutRounds(selections, results) {
+export function buildKnockoutRounds(selections, results, bestThirdPlaceTeamCodes = []) {
+  const thirdPlaceSlots = buildBestThirdPlaceSlots(selections, bestThirdPlaceTeamCodes);
   const rounds = roundOrder.map((round) => ({
     title: round,
     matches: knockoutSchema
       .filter((match) => match.round === round)
       .map((match) => ({
         ...match,
-        home: resolveParticipant(match.home, selections, results),
-        away: resolveParticipant(match.away, selections, results),
+        home: resolveParticipant(match.home, selections, results, thirdPlaceSlots),
+        away: resolveParticipant(match.away, selections, results, thirdPlaceSlots),
         winner: results?.[match.id] || null,
       })),
   }));
@@ -126,14 +123,16 @@ export function buildKnockoutRounds(selections, results) {
 export function isGroupStageComplete(selections) {
   return groups.every((group) => {
     const selection = selections[group.id] || {};
-    return selection.first && selection.second;
+    const chosen = [selection.first, selection.second, selection.third].filter(Boolean);
+    return selection.first && selection.second && selection.third && new Set(chosen).size === 3;
   });
 }
 
 export function getGroupProgress(selections) {
   const complete = groups.filter((group) => {
     const selection = selections[group.id] || {};
-    return selection.first && selection.second;
+    const chosen = [selection.first, selection.second, selection.third].filter(Boolean);
+    return selection.first && selection.second && selection.third && new Set(chosen).size === 3;
   }).length;
   return { complete, total: groups.length };
 }
@@ -179,7 +178,7 @@ export function getAllThirdPlaceTeams(selections) {
   return groups.map((group) => ({
     groupId: group.id,
     team: getGroupSelectionTeam(group.id, selections[group.id], 'third'),
-  }));
+  })).filter((entry) => entry.team?.code);
 }
 
 /**
@@ -187,22 +186,39 @@ export function getAllThirdPlaceTeams(selections) {
  * In 2026 World Cup, the 8 best third-place teams advance - these are selected from groups A-H
  */
 export function getQualifyingThirdPlaceTeams(selections) {
-  const qualifyingGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  return qualifyingGroups.map((groupId) => ({
-    groupId,
-    team: getGroupSelectionTeam(groupId, selections[groupId], 'third'),
-  }));
+  return getAllThirdPlaceTeams(selections).slice(0, 8);
 }
 
 /**
  * Check if all 3rd place selections are available (teams are determined from group selections)
  */
 export function areThirdPlaceTeamsReady(selections) {
-  // All groups must be complete first
   if (!isGroupStageComplete(selections)) {
     return false;
   }
-  // All third-place teams are automatically available once all groups are complete
-  // since they're derived from the group selections
-  return true;
+  return getAllThirdPlaceTeams(selections).length === groups.length;
+}
+
+export function isBestThirdSelectionValid(selections, bestThirdPlaceTeamCodes) {
+  const allThirdCodes = new Set(getAllThirdPlaceTeams(selections).map((entry) => entry.team.code));
+  if (!Array.isArray(bestThirdPlaceTeamCodes) || bestThirdPlaceTeamCodes.length !== 8) {
+    return false;
+  }
+  if (new Set(bestThirdPlaceTeamCodes).size !== 8) {
+    return false;
+  }
+
+  return bestThirdPlaceTeamCodes.every((code) => allThirdCodes.has(code));
+}
+
+export function buildBestThirdPlaceSlots(selections, bestThirdPlaceTeamCodes) {
+  const thirdTeams = getAllThirdPlaceTeams(selections);
+  const selectedCodes = new Set(bestThirdPlaceTeamCodes || []);
+  const selectedTeams = thirdTeams.filter((entry) => selectedCodes.has(entry.team.code)).map((entry) => entry.team);
+  const slotGroups = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+  return slotGroups.reduce((acc, groupId, index) => {
+    acc[groupId] = selectedTeams[index] || createPlaceholder('third');
+    return acc;
+  }, {});
 }
