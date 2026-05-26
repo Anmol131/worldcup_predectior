@@ -13,6 +13,8 @@ http.interceptors.response.use(
 export const sessionAPI = {
   getOrCreate: (sessionId) => http.post('/sessions/init', { sessionId }),
   getSession: (sessionId) => http.get(`/sessions/${sessionId}`),
+  deleteSession: (sessionId) => http.delete(`/sessions/${sessionId}`),
+  resetSession: (sessionId) => http.post('/sessions/reset', { sessionId }),
 };
 
 const formatGroupPosition = (position) => {
@@ -37,6 +39,8 @@ export const bracketAPI = {
   getBracket: (sessionId) => http.get(`/sessions/${sessionId}/bracket`),
   pickWinner: (sessionId, round, matchId, winnerCode) =>
     http.patch(`/sessions/${sessionId}/bracket/match`, { round, matchId, winnerCode }),
+  clearMatch: (sessionId, round, matchId) =>
+    http.patch(`/sessions/${sessionId}/bracket/match`, { round, matchId, winnerCode: null }),
   setChampion: (sessionId, teamCode) =>
     http.patch(`/sessions/${sessionId}/bracket/champion`, { teamCode }),
 };

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { groupsAPI } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 function formatGroupPosition(position) {
   if (position === 'first') return '1st';
@@ -10,6 +11,7 @@ function formatGroupPosition(position) {
 
 export function useGroups(sessionId) {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['groups', sessionId],
@@ -26,6 +28,7 @@ export function useGroups(sessionId) {
 
       const previousGroups = queryClient.getQueryData(['groups', sessionId]);
       const previousSession = queryClient.getQueryData(['session', sessionId]);
+      const wasComplete = previousGroups?.groups?.find((group) => group.groupId === groupId)?.isComplete;
 
       if (previousGroups) {
         const normalizedPosition = formatGroupPosition(position);
@@ -58,9 +61,10 @@ export function useGroups(sessionId) {
         queryClient.setQueryData(['groups', sessionId], nextGroups);
       }
 
-      return { previousGroups, previousSession };
+      return { previousGroups, previousSession, wasComplete };
     },
     onError: (err, variables, context) => {
+      showToast('Failed to save — retrying...', 'error');
       if (context?.previousGroups) {
         queryClient.setQueryData(['groups', sessionId], context.previousGroups);
       }
@@ -68,18 +72,22 @@ export function useGroups(sessionId) {
         queryClient.setQueryData(['session', sessionId], context.previousSession);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
       if (data?.group) {
         queryClient.setQueryData(['groups', sessionId], (previousGroups) => {
           if (!previousGroups) return previousGroups;
 
           return {
             ...previousGroups,
-            groups: previousGroups.groups.map((group) =>
-              group.groupId === data.group.groupId ? data.group : group,
-            ),
+            groups: previousGroups.groups.map((group) => (
+              group.groupId === data.group.groupId ? data.group : group
+            )),
           };
         });
+      }
+
+      if (data?.group?.isComplete && !context?.wasComplete) {
+        showToast(`✓ Group ${variables.groupId} complete!`, 'success');
       }
 
       if (data?.sessionSummary) {
@@ -127,6 +135,9 @@ export function useGroups(sessionId) {
         });
       }
     },
+    onError: () => {
+      showToast('Failed to save — retrying...', 'error');
+    },
   });
 
   const resetBestThirdMutation = useMutation({
@@ -147,6 +158,9 @@ export function useGroups(sessionId) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['groups', sessionId] });
+    },
+    onError: () => {
+      showToast('Failed to save — retrying...', 'error');
     },
   });
 

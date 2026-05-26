@@ -1,7 +1,7 @@
 const Session = require('../models/Session');
 const Bracket = require('../models/Bracket');
 const { generateR32Matchups, createEmptyBracketRounds } = require('../utils/bracketGenerator');
-const { propagateWinner } = require('../utils/bracketPropagator');
+const { propagateWinner, clearDownstreamWinners } = require('../utils/bracketPropagator');
 
 function toTeam(team) {
   if (!team) {
@@ -85,6 +85,7 @@ exports.pickWinner = async (req, res, next) => {
     const { sessionId } = req.params;
     const { round, matchId, winnerCode } = req.body;
     const roundKey = roundToKey(round);
+    const isClearing = winnerCode === undefined || winnerCode === '' || winnerCode === null;
 
     if (!roundKey) {
       return res.status(400).json({ success: false, message: 'Invalid round' });
@@ -102,25 +103,70 @@ exports.pickWinner = async (req, res, next) => {
     }
 
     const match = matches[matchIndex];
-    const winningTeam = [match.teamA, match.teamB].find((team) => team?.code === winnerCode);
-    if (!winningTeam) {
+    const matchReady = match.teamA && match.teamA.code && match.teamA.code !== 'TBD' && match.teamB && match.teamB.code && match.teamB.code !== 'TBD';
+
+    if (!isClearing && !matchReady) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both teams must be decided before picking a winner',
+      });
+    }
+
+    const winningTeam = isClearing ? null : [match.teamA, match.teamB].find((team) => team?.code === winnerCode);
+    if (!isClearing && !winningTeam) {
       return res.status(400).json({ success: false, message: 'Winner must be one of the match teams' });
     }
 
-    const winner = toTeam(winningTeam);
-    match.winner = winner;
+    const existingWinner = match.winner ? match.winner.code : null;
+    const winner = isClearing ? null : toTeam(winningTeam);
+
+    if (isClearing) {
+      match.winner = null;
+      clearDownstreamWinners(bracket, roundKey, matchIndex);
+    } else {
+      if (existingWinner && existingWinner !== winnerCode) {
+        clearDownstreamWinners(bracket, roundKey, matchIndex);
+      }
+      match.winner = winner;
+      if (roundKey !== 'final') {
+        propagateWinner(bracket, roundKey, matchIndex, winner);
+      }
+    }
 
     if (roundKey !== 'final') {
-      propagateWinner(bracket, roundKey, matchIndex, winner);
-    } else {
-      bracket.champion = winner;
-      bracket.isComplete = true;
+      const finalMatch = bracket.rounds.final?.[0];
+      if (!finalMatch?.winner) {
+        bracket.champion = null;
+        bracket.isComplete = false;
 
-      const session = await Session.findOne({ sessionId });
-      if (session) {
-        session.currentPhase = 'champion';
-        session.lastUpdated = new Date();
-        await session.save();
+        const session = await Session.findOne({ sessionId });
+        if (session && session.currentPhase === 'champion') {
+          session.currentPhase = 'bracket';
+          session.lastUpdated = new Date();
+          await session.save();
+        }
+      }
+    } else {
+      if (isClearing) {
+        bracket.champion = null;
+        bracket.isComplete = false;
+
+        const session = await Session.findOne({ sessionId });
+        if (session) {
+          session.currentPhase = 'bracket';
+          session.lastUpdated = new Date();
+          await session.save();
+        }
+      } else {
+        bracket.champion = winner;
+        bracket.isComplete = true;
+
+        const session = await Session.findOne({ sessionId });
+        if (session) {
+          session.currentPhase = 'champion';
+          session.lastUpdated = new Date();
+          await session.save();
+        }
       }
     }
 

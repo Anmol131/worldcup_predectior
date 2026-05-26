@@ -1,20 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { FaTrophy, FaShareAlt, FaRedo } from 'react-icons/fa';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { sessionAPI } from '../services/api';
 import { useSession } from '../hooks/useSession';
 import { useBracket } from '../hooks/useBracket';
 import { useShare } from '../hooks/useSessionData';
+import { useToast } from '../components/ui/Toast';
 
 function Champion() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { sessionId, isReady } = useSession();
   const { bracket, isLoading, error } = useBracket(sessionId);
   const { share, shareToken, shareUrl, isSharing, shareError } = useShare(sessionId);
   const [predictorName, setPredictorName] = useState('');
   const [shareMessage, setShareMessage] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const { showToast } = useToast();
 
   const champion = bracket?.champion || null;
 
@@ -47,7 +54,47 @@ function Champion() {
 
   const handleShare = () => {
     setShareMessage('');
-    share(predictorName.trim() || 'Anonymous');
+    share(predictorName.trim() || 'Anonymous', {
+      onSuccess: () => {
+        showToast('Prediction saved!', 'success');
+      },
+      onError: () => {
+        showToast('Failed to save — retrying...', 'error');
+      },
+    });
+  };
+
+  const handleStartOver = async () => {
+    setShowConfirm(false);
+
+    const currentSessionId = localStorage.getItem('wc2026-session');
+    console.log('[StartOver] Deleting session:', currentSessionId);
+
+    if (!currentSessionId) {
+      console.error('[StartOver] Missing current session id');
+      return;
+    }
+
+    try {
+      const result = await sessionAPI.resetSession(currentSessionId);
+      console.log('[StartOver] Server reset result:', result);
+
+      const { newSessionId, session: freshSession } = result;
+
+      Object.keys(localStorage)
+        .filter((key) => key.includes('wc2026'))
+        .forEach((key) => localStorage.removeItem(key));
+
+      localStorage.setItem('wc2026-session', newSessionId);
+      queryClient.clear();
+      queryClient.setQueryData(['groups', newSessionId], { groups: freshSession.groups });
+      queryClient.setQueryData(['session', newSessionId], { session: freshSession, ...freshSession });
+
+      window.location.href = '/groups';
+    } catch (err) {
+      console.error('Reset failed:', err);
+      showToast('Failed to reset. Please try again.', 'error');
+    }
   };
 
   const handleCopy = async () => {
@@ -117,11 +164,9 @@ function Champion() {
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <button
               className="btn-primary"
-              onClick={() => {
-                navigate('/groups');
-              }}
+              onClick={() => setShowConfirm(true)}
             >
-              <FaRedo className="mr-2" /> Restart Prediction
+              <FaRedo className="mr-2" /> Start Over
             </button>
             <button className="btn-secondary" onClick={handleShare} disabled={isSharing}>
               <FaShareAlt className="mr-2" /> {isSharing ? 'Creating...' : 'Generate Share Link'}
@@ -159,6 +204,15 @@ function Champion() {
           </div>
         </div>
       </motion.div>
+      <ConfirmModal
+        isOpen={showConfirm}
+        title="Start Over?"
+        message="This will permanently erase all your group picks, bracket selections, and your predicted champion. You'll start completely fresh. This cannot be undone."
+        confirmLabel="Yes, erase everything"
+        cancelLabel="Cancel"
+        onConfirm={handleStartOver}
+        onCancel={() => setShowConfirm(false)}
+      />
     </section>
   );
 }

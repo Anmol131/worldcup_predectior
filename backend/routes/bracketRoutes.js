@@ -23,7 +23,7 @@ router.patch(
     param('sessionId').isString(),
     body('round').isString().withMessage('round is required'),
     body('matchId').isString().withMessage('matchId is required'),
-    body('winnerCode').isString().withMessage('winnerCode is required'),
+    body('winnerCode').optional().isString().withMessage('winnerCode must be a string'),
     validateRequest,
   ],
   pickWinner,

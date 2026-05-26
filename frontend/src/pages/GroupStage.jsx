@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FaCheckCircle, FaArrowRight, FaFutbol } from 'react-icons/fa';
+import { useQueryClient } from '@tanstack/react-query';
+import { FaCheckCircle } from 'react-icons/fa';
 import GroupCard from '../components/GroupCard';
 import ProgressBar from '../components/ProgressBar';
 import ErrorMessage from '../components/ui/ErrorMessage';
@@ -11,6 +12,8 @@ import { useSession } from '../hooks/useSession';
 import { useGroups } from '../hooks/useGroups';
 import { useBracket } from '../hooks/useBracket';
 import { useSessionData } from '../hooks/useSessionData';
+import { useToast } from '../components/ui/Toast';
+import { sessionAPI } from '../services/api';
 
 const POSITION_MAP = {
   '1st': 'first',
@@ -46,14 +49,13 @@ function getThirdTeams(groups = []) {
 
 function GroupStage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { sessionId, isReady } = useSession();
-  const { groups, isLoading, error, pickPosition, isPicking, confirmBestThird, isConfirming, resetBestThird, isResetting } = useGroups(sessionId);
-  const { bracket, generateBracket, isGenerating } = useBracket(sessionId);
+  const { groups, isLoading, error, pickPosition, confirmBestThird, isConfirming, resetBestThird, isResetting } = useGroups(sessionId);
+  const { generateBracket, isGenerating } = useBracket(sessionId);
   const { session, isLoading: sessionLoading } = useSessionData(sessionId);
-  const [confirmed, setConfirmed] = useState(false);
   const [generateError, setGenerateError] = useState('');
-  const [toasts, setToasts] = useState([]);
-  const previousCompleteSetRef = useRef(new Set());
+  const { showToast } = useToast();
 
   const sessionBestThirdCodesKey = session?.session?.bestThirdTeams?.map((team) => team.code).filter(Boolean).join(',') || '';
   const sessionBestThirdCodes = useMemo(
@@ -64,8 +66,6 @@ function GroupStage() {
   );
   const [selectedThirdTeamCodes, setSelectedThirdTeamCodes] = useState(sessionBestThirdCodes);
   const confirmedSnapshot = useMemo(() => {
-    if (!session?.bestThirdConfirmed) return null;
-
     try {
       const raw = localStorage.getItem('wc2026-groups-confirmed');
       if (!raw) return null;
@@ -75,13 +75,9 @@ function GroupStage() {
     } catch {
       return null;
     }
-  }, [session?.bestThirdConfirmed]);
+  }, [session?.session?.bestThirdTeams]);
 
   useEffect(() => {
-    if (!sessionBestThirdCodesKey) {
-      return;
-    }
-
     setSelectedThirdTeamCodes((previous) => {
       const same = previous.length === sessionBestThirdCodes.length
         && previous.every((code) => sessionBestThirdCodes.includes(code));
@@ -89,8 +85,9 @@ function GroupStage() {
     });
   }, [sessionBestThirdCodesKey]);
 
-  const isConfirmed = Boolean(session?.bestThirdConfirmed || confirmed);
-  const displayGroups = isConfirmed && confirmedSnapshot?.groups ? confirmedSnapshot.groups : groups;
+  const isConfirmed = Boolean(session?.bestThirdConfirmed);
+  const needsReconfirm = Boolean(confirmedSnapshot && !isConfirmed);
+  const displayGroups = groups;
 
   const progress = useMemo(() => {
     const complete = (displayGroups || []).filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third).length;
@@ -103,25 +100,6 @@ function GroupStage() {
   const canGenerate = Boolean(session?.allGroupsDone && isConfirmed && hasBestEight);
 
   const progressPercent = Math.round((progress.complete / progress.total) * 100);
-
-  useEffect(() => {
-    const nowCompleted = (groups || [])
-      .filter((group) => getSelection(group).first && getSelection(group).second && getSelection(group).third)
-      .map((group) => group.groupId);
-
-    const prevSet = previousCompleteSetRef.current;
-    nowCompleted.forEach((groupId) => {
-      if (!prevSet.has(groupId)) {
-        const toastId = `${Date.now()}-${groupId}`;
-        setToasts((current) => [...current, { id: toastId, message: `✓ Group ${groupId} complete!` }]);
-        setTimeout(() => {
-          setToasts((current) => current.filter((item) => item.id !== toastId));
-        }, 2200);
-      }
-    });
-
-    previousCompleteSetRef.current = new Set(nowCompleted);
-  }, [groups]);
 
   const handleToggleBestThird = (teamCode) => {
     setSelectedThirdTeamCodes((current) => {
@@ -145,6 +123,7 @@ function GroupStage() {
     setGenerateError('');
     generateBracket(undefined, {
       onSuccess: () => {
+        showToast('✓ Bracket generated!', 'success');
         navigate('/knockout');
       },
       onError: (err) => {
@@ -157,7 +136,7 @@ function GroupStage() {
     setGenerateError('');
     confirmBestThird(selectedThirdTeamCodes, {
       onSuccess: () => {
-        setConfirmed(true);
+        showToast('✓ Groups confirmed!', 'success');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       },
       onError: (err) => {
@@ -170,12 +149,37 @@ function GroupStage() {
     setGenerateError('');
     resetBestThird(undefined, {
       onSuccess: () => {
-        setConfirmed(false);
+        showToast('Confirmation cleared.', 'success');
       },
       onError: (err) => {
         setGenerateError(err?.message || 'Failed to reset confirmation.');
       },
     });
+  };
+
+  const handleResetGroups = async () => {
+    const currentSessionId = sessionId || localStorage.getItem('wc2026-session');
+
+    if (!currentSessionId) {
+      showToast('No active session found.', 'error');
+      return;
+    }
+
+    try {
+      const result = await sessionAPI.resetSession(currentSessionId);
+      const { newSessionId } = result;
+
+      Object.keys(localStorage)
+        .filter((key) => key.includes('wc2026'))
+        .forEach((key) => localStorage.removeItem(key));
+
+      localStorage.setItem('wc2026-session', newSessionId);
+      queryClient.clear();
+      window.location.href = '/groups';
+    } catch (err) {
+      console.error('Group reset failed:', err);
+      showToast('Failed to reset groups. Please try again.', 'error');
+    }
   };
 
   if (!isReady || !sessionId || isLoading || sessionLoading) {
@@ -201,6 +205,21 @@ function GroupStage() {
     );
   }
 
+  if (!groups || groups.length === 0) {
+    return (
+      <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
+        <div className="mx-auto mb-4 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 shadow-glow sm:max-w-full">
+          <LoadingSpinner />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="safe-bottom mx-auto w-full max-w-[1160px] px-3 pb-16 pt-4 sm:px-5">
       <div className="mx-auto mb-4 w-full max-w-[480px] rounded-xl border border-[#1f2937] bg-[#111827] p-4 shadow-glow sm:max-w-full">
@@ -215,6 +234,15 @@ function GroupStage() {
             {progress.complete} / {progress.total} groups
           </div>
           <ProgressBar value={progressPercent} label="Group completion" />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="text-xs font-semibold text-[#ef4444] underline transition hover:text-[#f87171]"
+              onClick={handleResetGroups}
+            >
+              Reset groups
+            </button>
+          </div>
         </div>
 
         {isConfirmed && (
@@ -244,6 +272,34 @@ function GroupStage() {
             </div>
           </div>
         )}
+
+        {needsReconfirm && !isConfirmed && (
+          <div className="mt-4 rounded-3xl border border-amber-400/20 bg-amber-500/10 p-5 text-amber-50 shadow-glow sm:flex sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm uppercase tracking-[0.2em] text-amber-200">Selection updated</p>
+              <h2 className="text-xl font-bold text-white">Groups updated — re-confirm your 8 third-place teams</h2>
+              <p className="max-w-2xl text-sm text-amber-100/90">Your group picks changed, so the previous confirmation is no longer valid.</p>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:mt-0 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="btn-primary inline-flex items-center justify-center gap-2"
+                onClick={handleConfirmBestThird}
+                disabled={selectedThirdTeamCodes.length !== 8 || isConfirming}
+              >
+                {isConfirming ? 'Confirming...' : 'Update Selection'}
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-2xl border border-[#d1fae5]/25 bg-[#0b291e] px-4 py-3 text-sm font-semibold text-[#d1fae5] transition duration-200 hover:border-[#a7f3d0]"
+                onClick={handleEditGroups}
+                disabled={isResetting}
+              >
+                {isResetting ? 'Resetting...' : 'Edit Groups'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -258,8 +314,6 @@ function GroupStage() {
               group={group}
               selection={getSelection(group)}
               onSelect={(groupId, teamCode, rank) => pickPosition({ groupId, teamCode, position: rank })}
-              disabled={isConfirming || isConfirmed}
-              locked={isConfirmed}
             />
           </motion.div>
         ))}
@@ -304,28 +358,11 @@ function GroupStage() {
               onClick={handleConfirmBestThird}
               disabled={selectedThirdTeamCodes.length !== 8 || isConfirming}
             >
-              {isConfirming ? 'Confirming...' : 'Confirm 8 Teams'}
+              {isConfirming ? 'Confirming...' : session?.session?.bestThirdTeams?.length === 8 ? 'Update Selection' : 'Confirm 8 Teams'}
             </button>
           </div>
         </div>
       )}
-
-      <div className="fixed bottom-4 right-4 z-50 flex max-w-[260px] flex-col gap-2">
-        {toasts.map((toast) => (
-          <motion.div
-            key={toast.id}
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0 }}
-            className="rounded-lg border border-[#1f2937] bg-[#111827] px-3 py-2 text-sm text-[#e5e7eb] shadow-glow"
-          >
-            <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#0b1224] text-[#10b981]">
-              <FaFutbol className="h-3 w-3" />
-            </span>
-            {toast.message}
-          </motion.div>
-        ))}
-      </div>
     </section>
   );
 }

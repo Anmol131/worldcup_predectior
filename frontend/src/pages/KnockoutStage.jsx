@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
 import { FaRedo, FaTrophy } from 'react-icons/fa';
 import Bracket from '../components/Bracket';
+import ConfirmModal from '../components/ui/ConfirmModal';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { sessionAPI } from '../services/api';
 import { useSession } from '../hooks/useSession';
 import { useBracket } from '../hooks/useBracket';
 import { useSessionData } from '../hooks/useSessionData';
@@ -36,10 +39,12 @@ function toDisplayRounds(bracket) {
 function KnockoutStage() {
   const navigate = useNavigate();
   const { sessionId, isReady } = useSession();
+  const queryClient = useQueryClient();
   const { bracket, isLoading, error, pickWinner, isPicking } = useBracket(sessionId);
   const { session, isLoading: sessionLoading } = useSessionData(sessionId);
   const [showCelebration, setShowCelebration] = useState(false);
   const [pendingMatchId, setPendingMatchId] = useState(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const rounds = useMemo(() => toDisplayRounds(bracket), [bracket]);
   const champion = bracket?.champion || null;
@@ -97,6 +102,38 @@ function KnockoutStage() {
         onSettled: () => setPendingMatchId(null),
       },
     );
+  };
+
+  const handleStartOver = async () => {
+    setShowConfirm(false);
+
+    const currentSessionId = localStorage.getItem('wc2026-session');
+    console.log('[StartOver] Deleting session:', currentSessionId);
+
+    if (!currentSessionId) {
+      console.error('[StartOver] Missing current session id');
+      return;
+    }
+
+    try {
+      const result = await sessionAPI.resetSession(currentSessionId);
+      console.log('[StartOver] Server reset result:', result);
+
+      const { newSessionId, session: freshSession } = result;
+
+      Object.keys(localStorage)
+        .filter((key) => key.includes('wc2026'))
+        .forEach((key) => localStorage.removeItem(key));
+
+      localStorage.setItem('wc2026-session', newSessionId);
+      queryClient.clear();
+      queryClient.setQueryData(['groups', newSessionId], { groups: freshSession.groups });
+      queryClient.setQueryData(['session', newSessionId], { session: freshSession, ...freshSession });
+
+      window.location.href = '/groups';
+    } catch (err) {
+      console.error('Reset failed:', err);
+    }
   };
 
   if (!isReady || !sessionId || isLoading || sessionLoading) {
@@ -158,6 +195,8 @@ function KnockoutStage() {
         rounds={rounds}
         pendingMatchId={pendingMatchId}
         onPick={isPicking ? undefined : handlePickWinner}
+        onRevealChampion={() => navigate('/champion')}
+        onEditGroups={() => navigate('/groups')}
       />
 
       {pendingMatchId && (
@@ -166,16 +205,30 @@ function KnockoutStage() {
         </div>
       )}
 
-      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+      <div className="mt-10 hidden items-center justify-between gap-4 md:flex">
         <button className="btn-secondary" onClick={() => navigate('/groups')}>
           Edit Groups
         </button>
-        {champion && (
-          <button className="btn-primary" onClick={() => navigate('/champion')}>
-            Reveal Champion
+        <div className="flex items-center gap-4">
+          <button className="text-xs text-gray-500 underline transition hover:text-red-400" onClick={() => setShowConfirm(true)}>
+            Start over
           </button>
-        )}
+          {champion && (
+            <button className="btn-primary" onClick={() => navigate('/champion')}>
+              Reveal Champion
+            </button>
+          )}
+        </div>
       </div>
+      <ConfirmModal
+        isOpen={showConfirm}
+        title="Start Over?"
+        message="This will permanently erase all your group picks, bracket selections, and your predicted champion. You'll start completely fresh. This cannot be undone."
+        confirmLabel="Yes, erase everything"
+        cancelLabel="Cancel"
+        onConfirm={handleStartOver}
+        onCancel={() => setShowConfirm(false)}
+      />
 
       {showCelebration && champion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070b16]/95 p-5">
@@ -204,9 +257,7 @@ function KnockoutStage() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  navigate('/groups');
-                }}
+                onClick={handleStartOver}
               >
                 <FaRedo className="mr-2" /> Start Over
               </button>

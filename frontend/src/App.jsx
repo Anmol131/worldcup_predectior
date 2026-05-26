@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import { ToastContainer, ToastProvider, useToast } from './components/ui/Toast';
 import Home from './pages/Home';
 import GroupStage from './pages/GroupStage';
 import KnockoutStage from './pages/KnockoutStage';
@@ -43,7 +44,9 @@ function AnimatedRoutes() {
   );
 }
 
-function App() {
+function AppShell() {
+  const { toasts } = useToast();
+
   return (
     <BrowserRouter>
       <SessionProvider>
@@ -52,9 +55,18 @@ function App() {
           <Navbar />
           <AnimatedRoutes />
           <Footer />
+          <ToastContainer toasts={toasts} />
         </div>
       </SessionProvider>
     </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppShell />
+    </ToastProvider>
   );
 }
 

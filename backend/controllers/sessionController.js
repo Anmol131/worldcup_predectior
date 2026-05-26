@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const Session = require('../models/Session');
+const Bracket = require('../models/Bracket');
+const Prediction = require('../models/Prediction');
 const { GROUPS_DATA } = require('../data/teamsData');
 
 function cloneTeams(teams) {
@@ -46,9 +49,10 @@ function mapPosition(position) {
 exports.initSession = async (req, res, next) => {
   try {
     const { sessionId } = req.body;
-    let session = await Session.findOne({ sessionId });
+    const existingSession = await Session.findOne({ sessionId });
+    let session = existingSession;
 
-    if (!session) {
+    if (!existingSession) {
       session = await Session.create({
         sessionId,
         groups: createInitialGroups(),
@@ -58,10 +62,75 @@ exports.initSession = async (req, res, next) => {
         currentPhase: 'groups',
         lastUpdated: new Date(),
       });
+      console.log('[initSession] Created new session:', sessionId);
+    } else {
+      console.log('[initSession] Restored existing session:', sessionId);
     }
 
-    return res.status(200).json({ success: true, session });
+    const isNew = !existingSession;
+    return res.status(200).json({ success: true, session, isNew });
   } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteSession = async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    console.log('[deleteSession] Deleting session:', sessionId);
+
+    const [s, b, p] = await Promise.all([
+      Session.findOneAndDelete({ sessionId }),
+      Bracket.findOneAndDelete({ sessionId }),
+      Prediction.deleteMany({ sessionId }),
+    ]);
+
+    console.log('[deleteSession] Deleted session doc:', Boolean(s));
+    console.log('[deleteSession] Deleted bracket doc:', Boolean(b));
+    console.log('[deleteSession] Deleted predictions:', p.deletedCount);
+
+    return res.status(200).json({ success: true, deleted: { session: Boolean(s), bracket: Boolean(b) } });
+  } catch (error) {
+    console.error('[deleteSession] Error:', error);
+    return next(error);
+  }
+};
+
+exports.resetSession = async (req, res, next) => {
+  try {
+    const { sessionId } = req.body;
+    console.log('[resetSession] Resetting session:', sessionId);
+
+    const [s, b, p] = await Promise.all([
+      Session.findOneAndDelete({ sessionId }),
+      Bracket.findOneAndDelete({ sessionId }),
+      Prediction.deleteMany({ sessionId }),
+    ]);
+
+    console.log('[resetSession] Deleted session doc:', Boolean(s));
+    console.log('[resetSession] Deleted bracket doc:', Boolean(b));
+    console.log('[resetSession] Deleted predictions:', p.deletedCount);
+
+    const newSessionId = new mongoose.Types.ObjectId().toString();
+    const freshSession = await Session.create({
+      sessionId: newSessionId,
+      groups: createInitialGroups(),
+      allGroupsDone: false,
+      bestThirdConfirmed: false,
+      bestThirdTeams: [],
+      currentPhase: 'groups',
+      lastUpdated: new Date(),
+    });
+
+    console.log('[resetSession] Created fresh session:', newSessionId);
+
+    return res.status(200).json({
+      success: true,
+      newSessionId,
+      session: freshSession,
+    });
+  } catch (error) {
+    console.error('[resetSession] Error:', error);
     return next(error);
   }
 };
@@ -80,6 +149,8 @@ exports.resetBestThird = async (req, res, next) => {
     session.currentPhase = 'groups';
     session.lastUpdated = new Date();
     await session.save();
+
+    await Bracket.deleteOne({ sessionId });
 
     return res.status(200).json({ success: true, session });
   } catch (error) {
@@ -152,6 +223,13 @@ exports.updateGroupPick = async (req, res, next) => {
 
     group.isComplete = group.teams.filter((team) => team.position).length === 3;
     session.allGroupsDone = session.groups.every((entry) => entry.isComplete);
+
+    if (session.bestThirdConfirmed) {
+      session.bestThirdConfirmed = false;
+      session.currentPhase = 'groups';
+      await Bracket.findOneAndDelete({ sessionId });
+    }
+
     session.lastUpdated = new Date();
     await session.save();
 

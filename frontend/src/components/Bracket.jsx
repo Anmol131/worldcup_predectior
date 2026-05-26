@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { FaArrowRight } from 'react-icons/fa';
+import { FaArrowRight, FaCheckCircle } from 'react-icons/fa';
 import MatchCard from './MatchCard';
+import { useToast } from './ui/Toast';
 
 const ROUND_LABELS = {
   'Round of 32': 'R32',
@@ -64,36 +65,37 @@ function getMatchLabel(roundTitle, index) {
   return `${short} · M${String(index + 1).padStart(2, '0')}`;
 }
 
-function DesktopTeamRow({ team, isWinner, isLoser, rowHeight, showSelect, onSelect }) {
-  const isTbd = !team?.code;
+function DesktopTeamRow({ team, isWinner, isLoser, rowHeight, matchReady, onSelect }) {
+  const isTbd = !team?.code || team.code === 'TBD';
+  const buttonTitle = !matchReady ? 'Waiting for previous round results' : isTbd ? 'Waiting for previous round results' : undefined;
 
   return (
-    <div
-      className={`flex items-center gap-2 rounded-md border px-2 ${isTbd ? 'border-dashed border-[#374151] text-[#4b5563]' : 'border-transparent'} ${isWinner ? 'border-l-[3px] border-l-[#10b981] bg-[#0b1224] text-white' : 'text-[#d1d5db]'} ${isLoser ? 'opacity-40' : ''}`}
+    <button
+      type="button"
+      disabled={!onSelect || isTbd}
+      onClick={onSelect}
+      title={buttonTitle}
+      className={`group flex w-full items-center gap-2 rounded-md border px-2 text-left transition duration-200 ${isTbd ? 'border-dashed border-[#374151] text-[#4b5563]' : 'border-transparent'} ${isWinner ? 'border-l-[3px] border-l-[#10b981] bg-[#0b1224] text-white' : 'text-[#d1d5db]'} ${isLoser ? 'opacity-40 hover:border-[#374151] hover:bg-[#0f1720]' : ''} ${!onSelect || isTbd ? 'cursor-not-allowed opacity-40' : 'hover:border-[#10b981] hover:bg-[#0f1720]'}`}
       style={{ height: `${rowHeight}px` }}
     >
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1f2937] text-[11px] font-bold text-[#d1d5db]">
         {isTbd ? 'TD' : team.code.slice(0, 2)}
       </span>
 
-      <span className={`max-w-[120px] truncate text-[13px] ${isWinner ? 'font-bold text-white' : 'font-medium'}`}>
-        {isTbd ? 'TBD' : team.name}
-      </span>
+      <div className="min-w-0">
+        <p className={`max-w-[120px] truncate text-[13px] ${isWinner ? 'font-bold text-white' : 'font-medium'}`}>
+          {isTbd ? 'TBD' : team.name}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-[#6b7280]">{team.code || 'TBD'}</span>
+          {isLoser && matchReady && !isTbd && (
+            <span className="text-[10px] text-slate-500 transition duration-200 group-hover:text-slate-300">Pick instead?</span>
+          )}
+        </div>
+      </div>
 
-      {showSelect ? (
-        <button
-          type="button"
-            disabled={!onSelect}
-          onClick={onSelect}
-          className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded bg-[#1f2937] text-xs text-[#e5e7eb] transition duration-200 hover:bg-[#10b981] hover:text-[#06231b]"
-          aria-label={`Select ${team.name}`}
-        >
-          ▶
-        </button>
-      ) : (
-        <span className="ml-auto h-7 w-7" />
-      )}
-    </div>
+      <span className="ml-auto h-7 w-7" />
+    </button>
   );
 }
 
@@ -104,6 +106,7 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
   const awayIsWinner = resolved && match.winner === match.away.code;
   const homeIsLoser = resolved && !homeIsWinner;
   const awayIsLoser = resolved && !awayIsWinner;
+  const matchReady = Boolean(match.home?.code) && match.home.code !== 'TBD' && Boolean(match.away?.code) && match.away.code !== 'TBD';
 
   return (
     <div
@@ -137,8 +140,8 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
           isWinner={homeIsWinner}
           isLoser={homeIsLoser}
           rowHeight={rowHeight}
-          showSelect={!resolved && Boolean(match.home.code) && Boolean(onPick)}
-          onSelect={onPick ? () => onPick(match.id, match.home.code) : undefined}
+          matchReady={matchReady}
+          onSelect={onPick && (!resolved || homeIsLoser) ? () => onPick(match.id, match.home.code) : undefined}
         />
 
         <div className="my-1 h-px bg-[#1f2937]" />
@@ -148,20 +151,21 @@ function DesktopMatchCard({ match, roundTitle, index, isFinal, setCardRef, onPic
           isWinner={awayIsWinner}
           isLoser={awayIsLoser}
           rowHeight={rowHeight}
-          showSelect={!resolved && Boolean(match.away.code) && Boolean(onPick)}
-          onSelect={onPick ? () => onPick(match.id, match.away.code) : undefined}
+          matchReady={matchReady}
+          onSelect={onPick && (!resolved || awayIsLoser) ? () => onPick(match.id, match.away.code) : undefined}
         />
       </div>
     </div>
   );
 }
 
-function Bracket({ rounds, onPick, onRevealChampion, pendingMatchId = null }) {
+function Bracket({ rounds, onPick, onRevealChampion, onEditGroups, pendingMatchId = null }) {
   const [activeRound, setActiveRound] = useState(rounds[0]?.title || ROUND_ORDER[0]);
   const contentRef = useRef(null);
   const cardRefs = useRef(new Map());
   const [connectorPaths, setConnectorPaths] = useState([]);
   const [svgSize, setSvgSize] = useState({ width: 0, height: 0 });
+  const { showToast } = useToast();
 
   const roundsByTitle = useMemo(
     () => rounds.reduce((acc, round) => ({ ...acc, [round.title]: round }), {}),
@@ -256,29 +260,95 @@ function Bracket({ rounds, onPick, onRevealChampion, pendingMatchId = null }) {
   const activeRoundMatches = roundsByTitle[activeRound]?.matches || [];
   const activeComplete = activeRoundMatches.length > 0 && activeRoundMatches.every((match) => match.winner);
   const isFinalRound = activeRound === 'Final';
+  const activeDecidedCount = activeRoundMatches.filter((match) => match.winner).length;
+  const activeRoundLabel = DESKTOP_HEADERS[activeRound] || activeRound;
+
+  const roundIsAccessible = (roundTitle) => {
+    const targetIndex = ROUND_ORDER.indexOf(roundTitle);
+
+    if (targetIndex <= activeIndex) {
+      return true;
+    }
+
+    return ROUND_ORDER.slice(0, targetIndex).every((title) => {
+      const matches = roundsByTitle[title]?.matches || [];
+      return matches.length > 0 && matches.every((match) => match.winner);
+    });
+  };
+
+  const handleRoundSelect = (roundTitle) => {
+    if (roundTitle === activeRound) {
+      return;
+    }
+
+    if (!roundIsAccessible(roundTitle)) {
+      const blockingRound = ROUND_ORDER.find((title) => {
+        const titleIndex = ROUND_ORDER.indexOf(title);
+        if (titleIndex >= ROUND_ORDER.indexOf(roundTitle)) {
+          return false;
+        }
+
+        const matches = roundsByTitle[title]?.matches || [];
+        return matches.length > 0 && !matches.every((match) => match.winner);
+      }) || ROUND_ORDER[0];
+
+      showToast(`Complete ${blockingRound} first`, 'error');
+      return;
+    }
+
+    setActiveRound(roundTitle);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleNextRound = () => {
     if (!activeComplete || isFinalRound) {
+      if (!activeComplete) {
+        const remaining = activeRoundMatches.filter((match) => !match.winner).length;
+        showToast(`Pick ${remaining} more winner${remaining === 1 ? '' : 's'} to continue`, 'error');
+      }
       return;
     }
     setActiveRound(ROUND_ORDER[Math.min(activeIndex + 1, ROUND_ORDER.length - 1)]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const finalMatch = roundsByTitle.Final?.matches?.[0];
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto rounded-[20px] border border-[#1f2937] bg-[#111827] p-2 lg:hidden">
-        {ROUND_ORDER.map((roundTitle) => (
-          <button
-            key={roundTitle}
-            type="button"
-            onClick={() => setActiveRound(roundTitle)}
-            className={`whitespace-nowrap rounded-[20px] border px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition duration-200 active:scale-95 ${activeRound === roundTitle ? 'border-[#10b981] text-[#d1fae5]' : 'border-transparent text-[#9ca3af]'}`}
-          >
-            {ROUND_LABELS[roundTitle] || roundTitle}
-          </button>
-        ))}
+      <div className="space-y-2 rounded-[20px] border border-[#1f2937] bg-[#111827] p-3 lg:hidden">
+        <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[#1f2937] bg-[#0b1224] px-4 py-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.16em] text-[#6b7280]">Current round</p>
+            <p className="mt-1 text-sm font-semibold text-white">{activeRoundLabel}</p>
+          </div>
+          <div className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+            {activeDecidedCount} / {activeRoundMatches.length || 0} decided
+          </div>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto">
+          {ROUND_ORDER.map((roundTitle) => {
+            const isCurrent = activeRound === roundTitle;
+            const isComplete = (roundsByTitle[roundTitle]?.matches || []).length > 0
+              && (roundsByTitle[roundTitle]?.matches || []).every((match) => match.winner);
+            const accessible = roundIsAccessible(roundTitle);
+
+            return (
+              <button
+                key={roundTitle}
+                type="button"
+                onClick={() => handleRoundSelect(roundTitle)}
+                className={`whitespace-nowrap rounded-[20px] border px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition duration-200 active:scale-95 ${isCurrent ? 'border-[#10b981] bg-[#10b981]/10 text-[#d1fae5]' : isComplete ? 'border-[#10b981]/30 bg-[#0f1720] text-[#9ae6b4]' : accessible ? 'border-transparent text-[#9ca3af] hover:border-[#374151] hover:text-white' : 'cursor-not-allowed border-transparent text-[#4b5563] opacity-60'}`}
+              >
+                <span className="inline-flex items-center gap-1">
+                  {isComplete && <FaCheckCircle className="h-3 w-3 text-emerald-400" />}
+                  {ROUND_LABELS[roundTitle] || roundTitle}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="space-y-3 lg:hidden">
@@ -353,25 +423,34 @@ function Bracket({ rounds, onPick, onRevealChampion, pendingMatchId = null }) {
       </div>
 
       <div className="safe-bottom sticky bottom-0 z-30 border-t border-[#1f2937] bg-[#0a0f1e]/95 px-3 py-3 backdrop-blur-lg lg:hidden">
-        {!isFinalRound && onRevealChampion ? (
+        <div className="flex flex-col gap-2 min-[380px]:flex-row">
           <button
             type="button"
-            onClick={handleNextRound}
-            disabled={!activeComplete}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${activeComplete ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
+            onClick={onEditGroups || onRevealChampion}
+            className="w-full rounded-lg border border-[#374151] bg-[#0b1224] px-4 py-3 text-sm font-semibold text-[#e5e7eb] transition duration-200 active:scale-95 hover:border-[#4b5563] min-[380px]:flex-1"
           >
-            → Next Round <FaArrowRight className="h-3 w-3" />
+            Edit Groups
           </button>
-        ) : isFinalRound && onRevealChampion ? (
-          <button
-            type="button"
-            onClick={onRevealChampion}
-            disabled={!finalMatch?.winner}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 ${finalMatch?.winner ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
-          >
-            Reveal Champion
-          </button>
-        ) : null}
+          {!isFinalRound && onRevealChampion ? (
+            <button
+              type="button"
+              onClick={handleNextRound}
+              disabled={!activeComplete}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 min-[380px]:flex-1 ${activeComplete ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
+            >
+              Next Round <FaArrowRight className="h-3 w-3" />
+            </button>
+          ) : isFinalRound && onRevealChampion ? (
+            <button
+              type="button"
+              onClick={onRevealChampion}
+              disabled={!finalMatch?.winner}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition duration-200 active:scale-95 min-[380px]:flex-1 ${finalMatch?.winner ? 'bg-[#10b981] text-[#06231b]' : 'cursor-not-allowed bg-[#374151] text-[#cbd5e1]'}`}
+            >
+              See Champion 🏆
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );
