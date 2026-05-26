@@ -41,6 +41,21 @@ function getSelection(group) {
   return selection;
 }
 
+function getSelectionOrder(selection) {
+  return ['first', 'second', 'third'].map((rank) => selection[rank]).filter(Boolean);
+}
+
+function getRankForClick(selection, teamCode) {
+  const order = getSelectionOrder(selection);
+  const currentIndex = order.indexOf(teamCode);
+
+  if (currentIndex !== -1) {
+    return ['first', 'second', 'third'][currentIndex];
+  }
+
+  return ['first', 'second', 'third'][order.length] || 'third';
+}
+
 function getThirdTeams(groups = []) {
   return groups.flatMap((group) => (group.teams || [])
     .filter((team) => normalizePosition(team.position) === 'third')
@@ -313,7 +328,11 @@ function GroupStage() {
             <GroupCard
               group={group}
               selection={getSelection(group)}
-              onSelect={(groupId, teamCode, rank) => pickPosition({ groupId, teamCode, position: rank })}
+              onSelect={(groupId, teamCode) => {
+                const selection = getSelection(group);
+                const rank = getRankForClick(selection, teamCode);
+                pickPosition({ groupId, teamCode, position: rank });
+              }}
             />
           </motion.div>
         ))}

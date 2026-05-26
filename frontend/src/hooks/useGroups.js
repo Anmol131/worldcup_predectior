@@ -31,7 +31,6 @@ export function useGroups(sessionId) {
       const wasComplete = previousGroups?.groups?.find((group) => group.groupId === groupId)?.isComplete;
 
       if (previousGroups) {
-        const normalizedPosition = formatGroupPosition(position);
         const nextGroups = {
           ...previousGroups,
           groups: previousGroups.groups.map((group) => {
@@ -39,21 +38,30 @@ export function useGroups(sessionId) {
               return group;
             }
 
-            const teams = group.teams.map((team) => {
-              if (team.position === normalizedPosition && team.code !== teamCode) {
-                return { ...team, position: null };
+            const orderedCodes = ['1st', '2nd', '3rd']
+              .map((rank) => group.teams.find((team) => team.position === rank)?.code)
+              .filter(Boolean);
+            const clickedIndex = orderedCodes.indexOf(teamCode);
+
+            let nextOrder = orderedCodes;
+            if (clickedIndex !== -1) {
+              nextOrder = orderedCodes.filter((code) => code !== teamCode);
+            } else if (orderedCodes.length < 3) {
+              nextOrder = [...orderedCodes, teamCode];
+            }
+
+            const teams = group.teams.map((team) => ({ ...team, position: null }));
+            nextOrder.slice(0, 3).forEach((code, index) => {
+              const teamIndex = teams.findIndex((team) => team.code === code);
+              if (teamIndex !== -1) {
+                teams[teamIndex].position = ['1st', '2nd', '3rd'][index];
               }
-              if (team.code === teamCode) {
-                const newPos = team.position === normalizedPosition ? null : normalizedPosition;
-                return { ...team, position: newPos };
-              }
-              return team;
             });
 
             return {
               ...group,
               teams,
-              isComplete: teams.filter((team) => team.position).length === 3,
+              isComplete: nextOrder.length === 3,
             };
           }),
         };

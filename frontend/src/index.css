@@ -26,6 +26,82 @@ body {
   overflow-x: hidden;
 }
 
+@keyframes stadium-drift {
+  0% {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: scale(1.08) translate3d(0, -14px, 0);
+  }
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+
+  45% {
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: translateY(-110px) scale(0.45);
+    opacity: 0;
+  }
+}
+
+.home-page {
+  isolation: isolate;
+}
+
+.home-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.home-ambient__image {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1518605368461-1b32ce55b38f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.18;
+  filter: blur(18px);
+  mix-blend-mode: screen;
+  animation: stadium-drift 18s ease-in-out infinite alternate;
+}
+
+.home-ambient__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(5, 255, 145, 0.16) 0%, rgba(12, 19, 36, 0) 52%);
+}
+
+.home-ambient__particles {
+  position: absolute;
+  inset: 0;
+}
+
+.home-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: #05ff91;
+  opacity: 0;
+  pointer-events: none;
+  animation-name: float-particle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.home-page .shadow-glow {
+  box-shadow: 0 0 30px rgba(5, 255, 145, 0.12), 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
 #root {
   min-height: 100vh;
 }
